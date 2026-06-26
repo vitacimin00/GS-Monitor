@@ -510,9 +510,30 @@ function dbPush(path, val) {
 
 // ==================== FIREBASE ====================
 function loadFBConfig() {
-    try { return JSON.parse(localStorage.getItem('fb_config')); } catch(e) { return null; }
+    if (localStorage.getItem('fb_disabled') === 'true') {
+        return null;
+    }
+    try {
+        let cfg = JSON.parse(localStorage.getItem('fb_config'));
+        if (!cfg) {
+            cfg = {
+                apiKey: "AIzaSyBE8ZZd_YW2-Vnk72dR_NzD4l0JoTBX98U",
+                authDomain: "gsmonitor-315cd.firebaseapp.com",
+                projectId: "gsmonitor-315cd",
+                storageBucket: "gsmonitor-315cd.firebasestorage.app",
+                messagingSenderId: "755232280986",
+                appId: "1:755232280986:web:d7402f20e08d9157f6aa23",
+                measurementId: "G-DPPWKQZT48",
+                databaseURL: "https://gsmonitor-315cd-default-rtdb.asia-southeast1.firebasedatabase.app/"
+            };
+        }
+        return cfg;
+    } catch(e) { return null; }
 }
-function saveFBConfig(cfg) { localStorage.setItem('fb_config', JSON.stringify(cfg)); }
+function saveFBConfig(cfg) {
+    localStorage.removeItem('fb_disabled');
+    localStorage.setItem('fb_config', JSON.stringify(cfg));
+}
 
 function initFirebase(config) {
     try {
@@ -632,6 +653,7 @@ function disconnectFB() {
     listeners.forEach(fn=>fn()); listeners=[];
     if(firebase.apps.length) firebase.app().delete();
     db = null; fbConnected = false;
+    localStorage.setItem('fb_disabled', 'true');
     localStorage.removeItem('fb_config');
     closeM('fbSetup');
     loadLocal(); updateConnUI(); renderAll();
