@@ -4,311 +4,248 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GSuite Domain Rotation Tracker</title>
-    <meta name="description" content="Monitor dan kelola rotasi domain GSuite dengan cooldown tracking, user assignment, analytics, dan forecast">
+    <meta name="description" content="Monitor dan kelola rotasi domain GSuite dengan realtime sync">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
     <style>
 :root {
-    --bg-0: #050810;
-    --bg-1: #0a0f1e;
-    --bg-2: #111a2e;
-    --bg-3: #182240;
-    --bg-4: #1e2a4a;
-    --bg-glass: rgba(17, 26, 46, 0.7);
-    --border-1: #1e2d50;
-    --border-2: #2a3d6a;
-    --border-3: #3a5090;
-    --text-0: #ffffff;
-    --text-1: #e2e8f4;
-    --text-2: #8899b8;
-    --text-3: #556688;
-    --blue: #3b82f6;
-    --blue-g: rgba(59,130,246,0.25);
-    --purple: #8b5cf6;
-    --purple-g: rgba(139,92,246,0.2);
-    --green: #10b981;
-    --green-g: rgba(16,185,129,0.2);
-    --red: #ef4444;
-    --red-g: rgba(239,68,68,0.2);
-    --amber: #f59e0b;
-    --amber-g: rgba(245,158,11,0.2);
-    --cyan: #06b6d4;
-    --cyan-g: rgba(6,182,212,0.2);
-    --pink: #ec4899;
-    --r: 10px;
-    --r2: 14px;
-    --r3: 18px;
-    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --bg-0:#050810;--bg-1:#0a0f1e;--bg-2:#111a2e;--bg-3:#182240;--bg-4:#1e2a4a;
+    --bg-glass:rgba(17,26,46,0.7);--border-1:#1e2d50;--border-2:#2a3d6a;--border-3:#3a5090;
+    --text-0:#fff;--text-1:#e2e8f4;--text-2:#8899b8;--text-3:#556688;
+    --blue:#3b82f6;--blue-g:rgba(59,130,246,.25);--purple:#8b5cf6;--purple-g:rgba(139,92,246,.2);
+    --green:#10b981;--green-g:rgba(16,185,129,.2);--red:#ef4444;--red-g:rgba(239,68,68,.2);
+    --amber:#f59e0b;--amber-g:rgba(245,158,11,.2);--cyan:#06b6d4;--cyan-g:rgba(6,182,212,.2);--pink:#ec4899;
+    --r:10px;--r2:14px;--r3:18px;--shadow:0 4px 24px rgba(0,0,0,.4);
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Inter',sans-serif; background:var(--bg-0); color:var(--text-1); min-height:100vh; overflow-x:hidden; }
-body::before { content:''; position:fixed; inset:0; background:
-    radial-gradient(ellipse at 15% 30%, rgba(59,130,246,0.07) 0%, transparent 60%),
-    radial-gradient(ellipse at 85% 20%, rgba(139,92,246,0.05) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 90%, rgba(16,185,129,0.04) 0%, transparent 50%);
-    pointer-events:none; z-index:0; }
-::-webkit-scrollbar { width:5px; height:5px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:var(--border-2); border-radius:3px; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg-0);color:var(--text-1);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(ellipse at 15% 30%,rgba(59,130,246,.07) 0%,transparent 60%),
+    radial-gradient(ellipse at 85% 20%,rgba(139,92,246,.05) 0%,transparent 50%),
+    radial-gradient(ellipse at 50% 90%,rgba(16,185,129,.04) 0%,transparent 50%);pointer-events:none;z-index:0}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
 
-/* HEADER */
-.header { position:sticky; top:0; z-index:100; padding:0 28px; height:60px; display:flex; align-items:center;
-    background:rgba(10,15,30,0.85); backdrop-filter:blur(24px); border-bottom:1px solid var(--border-1); }
-.header-inner { width:100%; max-width:1440px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; }
-.logo { display:flex; align-items:center; gap:12px; }
-.logo-icon { width:36px; height:36px; background:linear-gradient(135deg,var(--blue),var(--purple)); border-radius:10px;
-    display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 3px 12px var(--blue-g); }
-.logo h1 { font-size:16px; font-weight:800; background:linear-gradient(135deg,var(--blue),var(--purple));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.logo span { font-size:11px; color:var(--text-3); font-weight:400; display:block; margin-top:1px; }
-.header-actions { display:flex; align-items:center; gap:8px; }
-.clock { text-align:right; font-size:12px; color:var(--text-2); line-height:1.5; }
-.clock b { color:var(--text-1); font-weight:600; font-size:13px; display:block; }
+.header{position:sticky;top:0;z-index:100;padding:0 28px;height:60px;display:flex;align-items:center;
+    background:rgba(10,15,30,.85);backdrop-filter:blur(24px);border-bottom:1px solid var(--border-1)}
+.header-inner{width:100%;max-width:1440px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:10px;
+    display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 12px var(--blue-g)}
+.logo h1{font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--blue),var(--purple));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo span{font-size:11px;color:var(--text-3);font-weight:400;display:block;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:14px}
+.conn{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;border:1px solid var(--border-1)}
+.conn.on{color:var(--green);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08)}
+.conn.off{color:var(--red);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.08)}
+.conn.local{color:var(--amber);border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.08)}
+.conn-dot{width:6px;height:6px;border-radius:50%}
+.conn.on .conn-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+.conn.off .conn-dot{background:var(--red);box-shadow:0 0 6px var(--red)}
+.conn.local .conn-dot{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.clock{text-align:right;font-size:12px;color:var(--text-2);line-height:1.5}
+.clock b{color:var(--text-1);font-weight:600;font-size:13px;display:block}
 
-/* LAYOUT */
-.app { position:relative; z-index:1; max-width:1440px; margin:0 auto; padding:20px 28px 80px; }
+.app{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:20px 28px 80px}
 
-/* STATS */
-.stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
-.stat { background:var(--bg-2); border:1px solid var(--border-1); border-radius:var(--r2); padding:16px 18px;
-    position:relative; overflow:hidden; transition:all .25s; cursor:default; }
-.stat:hover { border-color:var(--border-2); transform:translateY(-2px); box-shadow:var(--shadow); }
-.stat::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
-.stat:nth-child(1)::after { background:linear-gradient(90deg,var(--blue),var(--purple)); }
-.stat:nth-child(2)::after { background:linear-gradient(90deg,var(--green),var(--cyan)); }
-.stat:nth-child(3)::after { background:linear-gradient(90deg,var(--red),var(--pink)); }
-.stat:nth-child(4)::after { background:linear-gradient(90deg,var(--amber),#f97316); }
-.stat:nth-child(5)::after { background:linear-gradient(90deg,var(--cyan),var(--blue)); }
-.stat-label { font-size:10px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.8px; }
-.stat-val { font-size:28px; font-weight:900; margin-top:4px; line-height:1; }
-.stat:nth-child(1) .stat-val{color:var(--blue)} .stat:nth-child(2) .stat-val{color:var(--green)}
-.stat:nth-child(3) .stat-val{color:var(--red)} .stat:nth-child(4) .stat-val{color:var(--amber)}
+/* Setup banner */
+.setup-banner{background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(239,68,68,.1));border:1px solid rgba(245,158,11,.3);
+    border-radius:var(--r2);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px}
+.setup-banner.hidden{display:none}
+.setup-banner .icon{font-size:24px;flex-shrink:0}
+.setup-banner .text{flex:1}
+.setup-banner .text b{color:var(--amber);font-size:14px}
+.setup-banner .text p{color:var(--text-2);font-size:12px;margin-top:4px}
+
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--bg-2);border:1px solid var(--border-1);border-radius:var(--r2);padding:16px 18px;
+    position:relative;overflow:hidden;transition:all .25s;cursor:default}
+.stat:hover{border-color:var(--border-2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.stat::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat:nth-child(1)::after{background:linear-gradient(90deg,var(--blue),var(--purple))}
+.stat:nth-child(2)::after{background:linear-gradient(90deg,var(--green),var(--cyan))}
+.stat:nth-child(3)::after{background:linear-gradient(90deg,var(--red),var(--pink))}
+.stat:nth-child(4)::after{background:linear-gradient(90deg,var(--amber),#f97316)}
+.stat:nth-child(5)::after{background:linear-gradient(90deg,var(--cyan),var(--blue))}
+.stat-label{font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px}
+.stat-val{font-size:28px;font-weight:900;margin-top:4px;line-height:1}
+.stat:nth-child(1) .stat-val{color:var(--blue)}.stat:nth-child(2) .stat-val{color:var(--green)}
+.stat:nth-child(3) .stat-val{color:var(--red)}.stat:nth-child(4) .stat-val{color:var(--amber)}
 .stat:nth-child(5) .stat-val{color:var(--cyan)}
-.stat-sub { font-size:11px; color:var(--text-3); margin-top:4px; }
-.stat-sub b { color:var(--text-2); }
+.stat-sub{font-size:11px;color:var(--text-3);margin-top:4px}
 
-/* TABS */
-.tabs { display:flex; gap:3px; background:var(--bg-2); border:1px solid var(--border-1); border-radius:var(--r2);
-    padding:3px; margin-bottom:20px; overflow-x:auto; }
-.tab { padding:9px 16px; border:none; background:transparent; color:var(--text-3); font-family:inherit;
-    font-size:12px; font-weight:600; border-radius:var(--r); cursor:pointer; transition:all .2s;
-    white-space:nowrap; display:flex; align-items:center; gap:6px; }
-.tab:hover { color:var(--text-1); background:rgba(255,255,255,.03); }
-.tab.on { background:linear-gradient(135deg,var(--blue),var(--purple)); color:#fff;
-    box-shadow:0 2px 10px var(--blue-g); }
-.tab-body { display:none; } .tab-body.on { display:block; }
+.tabs{display:flex;gap:3px;background:var(--bg-2);border:1px solid var(--border-1);border-radius:var(--r2);
+    padding:3px;margin-bottom:20px;overflow-x:auto}
+.tab{padding:9px 16px;border:none;background:transparent;color:var(--text-3);font-family:inherit;
+    font-size:12px;font-weight:600;border-radius:var(--r);cursor:pointer;transition:all .2s;white-space:nowrap;
+    display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--text-1);background:rgba(255,255,255,.03)}
+.tab.on{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;box-shadow:0 2px 10px var(--blue-g)}
+.tab-body{display:none}.tab-body.on{display:block}
 
-/* BUTTONS */
-.btn { display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border:none; border-radius:var(--r);
-    font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:all .2s; white-space:nowrap; }
-.btn-p { background:linear-gradient(135deg,var(--blue),var(--purple)); color:#fff; box-shadow:0 3px 10px var(--blue-g); }
-.btn-p:hover { transform:translateY(-1px); box-shadow:0 5px 16px var(--blue-g); }
-.btn-s { background:var(--bg-3); color:var(--text-1); border:1px solid var(--border-1); }
-.btn-s:hover { border-color:var(--border-2); background:var(--bg-4); }
-.btn-d { background:var(--red-g); color:var(--red); border:1px solid rgba(239,68,68,.2); }
-.btn-d:hover { background:rgba(239,68,68,.2); }
-.btn-g { background:var(--green-g); color:var(--green); border:1px solid rgba(16,185,129,.2); }
-.btn-g:hover { background:rgba(16,185,129,.2); }
-.btn-icon { width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border:none;border-radius:var(--r);
+    font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-p{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;box-shadow:0 3px 10px var(--blue-g)}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 5px 16px var(--blue-g)}
+.btn-s{background:var(--bg-3);color:var(--text-1);border:1px solid var(--border-1)}
+.btn-s:hover{border-color:var(--border-2);background:var(--bg-4)}
+.btn-d{background:var(--red-g);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.btn-d:hover{background:rgba(239,68,68,.2)}
+.btn-g{background:var(--green-g);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.btn-g:hover{background:rgba(16,185,129,.2)}
+.btn-icon{width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;font-size:13px}
 
-/* SECTIONS */
-.sec { margin-bottom:20px; }
-.sec-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
-.sec-title { font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; }
-.sec-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.sec{margin-bottom:20px}
+.sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.sec-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sec-actions{display:flex;gap:6px;flex-wrap:wrap}
+.card{background:var(--bg-2);border:1px solid var(--border-1);border-radius:var(--r2)}
 
-/* CARDS */
-.card { background:var(--bg-2); border:1px solid var(--border-1); border-radius:var(--r2); }
-.card-header { padding:14px 16px; border-bottom:1px solid var(--border-1); display:flex;
-    align-items:center; justify-content:space-between; }
+.dom-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.dom-card{background:var(--bg-2);border:1px solid var(--border-1);border-radius:var(--r2);
+    padding:16px;transition:all .25s;position:relative;overflow:hidden}
+.dom-card:hover{border-color:var(--border-2);transform:translateY(-1px)}
+.dom-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.dom-card-info{display:flex;align-items:center;gap:10px}
+.dom-avatar{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:800;flex-shrink:0}
+.dom-name{font-size:13px;font-weight:700}.dom-sub{font-size:10px;color:var(--text-3);margin-top:1px}
+.dom-card-body{display:flex;gap:12px;align-items:center}
+.cooldown-ring{width:48px;height:48px;position:relative;flex-shrink:0}
+.cooldown-ring svg{width:48px;height:48px;transform:rotate(-90deg)}
+.cooldown-ring circle{fill:none;stroke-width:3.5}
+.cooldown-ring .bg{stroke:var(--border-1)}
+.cooldown-ring .fg{stroke-linecap:round;transition:stroke-dashoffset .6s ease}
+.cooldown-ring .center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+.dom-card-stats{flex:1}
+.dom-stat-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.dom-stat-row:last-child{border:none}
+.dom-stat-row .label{color:var(--text-3)}.dom-stat-row .val{font-weight:600}
+.dom-card-footer{margin-top:10px;display:flex;gap:6px;justify-content:flex-end}
 
-/* DOMAIN GRID */
-.dom-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; }
-.dom-card { background:var(--bg-2); border:1px solid var(--border-1); border-radius:var(--r2);
-    padding:16px; transition:all .25s; position:relative; overflow:hidden; }
-.dom-card:hover { border-color:var(--border-2); transform:translateY(-1px); }
-.dom-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.dom-card-info { display:flex; align-items:center; gap:10px; }
-.dom-avatar { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
-    font-size:14px; font-weight:800; flex-shrink:0; }
-.dom-name { font-size:13px; font-weight:700; }
-.dom-sub { font-size:10px; color:var(--text-3); margin-top:1px; }
-.dom-card-body { display:flex; gap:12px; align-items:center; }
-.cooldown-ring { width:48px; height:48px; position:relative; flex-shrink:0; }
-.cooldown-ring svg { width:48px; height:48px; transform:rotate(-90deg); }
-.cooldown-ring circle { fill:none; stroke-width:3.5; }
-.cooldown-ring .bg { stroke:var(--border-1); }
-.cooldown-ring .fg { stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
-.cooldown-ring .center { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    font-size:10px; font-weight:800; }
-.dom-card-stats { flex:1; }
-.dom-stat-row { display:flex; justify-content:space-between; font-size:11px; padding:3px 0;
-    border-bottom:1px solid rgba(255,255,255,.03); }
-.dom-stat-row:last-child { border:none; }
-.dom-stat-row .label { color:var(--text-3); }
-.dom-stat-row .val { font-weight:600; }
-.dom-card-footer { margin-top:10px; display:flex; gap:6px; justify-content:flex-end; }
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;
+    font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%}
+.badge-g{background:var(--green-g);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+.badge-g::before{background:var(--green);box-shadow:0 0 6px var(--green)}
+.badge-r{background:var(--red-g);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.badge-r::before{background:var(--red);box-shadow:0 0 6px var(--red)}
+.badge-b{background:var(--blue-g);color:var(--blue);border:1px solid rgba(59,130,246,.2)}
+.badge-b::before{background:var(--blue);box-shadow:0 0 6px var(--blue)}
+.badge-a{background:var(--amber-g);color:var(--amber);border:1px solid rgba(245,158,11,.2)}
+.badge-a::before{background:var(--amber);box-shadow:0 0 6px var(--amber)}
 
-/* BADGE */
-.badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:20px;
-    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; }
-.badge::before { content:''; width:5px; height:5px; border-radius:50%; }
-.badge-g { background:var(--green-g); color:var(--green); border:1px solid rgba(16,185,129,.2); }
-.badge-g::before { background:var(--green); box-shadow:0 0 6px var(--green); }
-.badge-r { background:var(--red-g); color:var(--red); border:1px solid rgba(239,68,68,.2); }
-.badge-r::before { background:var(--red); box-shadow:0 0 6px var(--red); }
-.badge-b { background:var(--blue-g); color:var(--blue); border:1px solid rgba(59,130,246,.2); }
-.badge-b::before { background:var(--blue); box-shadow:0 0 6px var(--blue); }
-.badge-a { background:var(--amber-g); color:var(--amber); border:1px solid rgba(245,158,11,.2); }
-.badge-a::before { background:var(--amber); box-shadow:0 0 6px var(--amber); }
+.user-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.user-card{background:var(--bg-2);border:1px solid var(--border-1);border-radius:var(--r2);padding:16px;text-align:center;transition:all .25s}
+.user-card:hover{border-color:var(--border-2)}
+.user-av{width:48px;height:48px;border-radius:50%;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800}
+.user-nm{font-size:14px;font-weight:700;margin-bottom:6px}
+.user-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.user-stat{background:var(--bg-3);border-radius:var(--r);padding:8px}
+.user-stat .v{font-size:18px;font-weight:800}.user-stat .l{font-size:9px;color:var(--text-3);text-transform:uppercase;margin-top:2px}
 
-/* USER CARDS */
-.user-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
-.user-card { background:var(--bg-2); border:1px solid var(--border-1); border-radius:var(--r2);
-    padding:16px; text-align:center; transition:all .25s; }
-.user-card:hover { border-color:var(--border-2); }
-.user-av { width:48px; height:48px; border-radius:50%; margin:0 auto 10px; display:flex;
-    align-items:center; justify-content:center; font-size:20px; font-weight:800; }
-.user-nm { font-size:14px; font-weight:700; margin-bottom:6px; }
-.user-stats { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:10px; }
-.user-stat { background:var(--bg-3); border-radius:var(--r); padding:8px; }
-.user-stat .v { font-size:18px; font-weight:800; }
-.user-stat .l { font-size:9px; color:var(--text-3); text-transform:uppercase; margin-top:2px; }
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);
+    text-transform:uppercase;letter-spacing:.6px;background:rgba(0,0,0,.2);border-bottom:1px solid var(--border-1);position:sticky;top:0}
+tbody td{padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(30,45,80,.4)}
+tbody tr{transition:background .15s}tbody tr:hover{background:rgba(59,130,246,.03)}
+tbody tr:last-child td{border:none}
 
-/* TABLE */
-.tbl-wrap { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; }
-thead th { padding:10px 14px; text-align:left; font-size:10px; font-weight:700; color:var(--text-3);
-    text-transform:uppercase; letter-spacing:.6px; background:rgba(0,0,0,.2); border-bottom:1px solid var(--border-1);
-    position:sticky; top:0; }
-tbody td { padding:10px 14px; font-size:12px; border-bottom:1px solid rgba(30,45,80,.4); }
-tbody tr { transition:background .15s; }
-tbody tr:hover { background:rgba(59,130,246,.03); }
-tbody tr:last-child td { border:none; }
+.tl-grid{display:grid}
+.tl-hdr{display:grid;grid-template-columns:160px repeat(7,1fr);border-bottom:1px solid var(--border-1);background:rgba(0,0,0,.15)}
+.tl-row{display:grid;grid-template-columns:160px repeat(7,1fr);border-bottom:1px solid rgba(30,45,80,.3)}
+.tl-row:last-child{border:none}
+.tl-label{padding:10px 12px;display:flex;align-items:center;gap:8px;border-right:1px solid rgba(30,45,80,.3);font-size:12px;font-weight:600}
+.tl-label .ma{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+.tl-dh{padding:8px;text-align:center;font-size:10px;font-weight:700;color:var(--text-3);border-right:1px solid rgba(30,45,80,.2);text-transform:uppercase}
+.tl-dh:last-child{border:none}.tl-dh.today{color:var(--blue);background:rgba(59,130,246,.04)}
+.tl-cell{padding:6px 4px;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(30,45,80,.2);min-height:42px}
+.tl-cell:last-child{border:none}.tl-cell.today{background:rgba(59,130,246,.03)}
+.tl-chip{padding:3px 8px;border-radius:5px;font-size:9px;font-weight:700;white-space:nowrap;letter-spacing:.2px}
+.tl-chip.ready{background:var(--green-g);color:var(--green)}
+.tl-chip.cd{background:rgba(239,68,68,.08);color:rgba(239,68,68,.5)}
+.tl-chip.used{background:var(--blue-g);color:var(--blue)}
+.tl-chip.partial{background:var(--amber-g);color:var(--amber)}
 
-/* TIMELINE */
-.tl-grid { display:grid; }
-.tl-hdr { display:grid; grid-template-columns:160px repeat(7,1fr); border-bottom:1px solid var(--border-1);
-    background:rgba(0,0,0,.15); }
-.tl-row { display:grid; grid-template-columns:160px repeat(7,1fr); border-bottom:1px solid rgba(30,45,80,.3); }
-.tl-row:last-child { border:none; }
-.tl-label { padding:10px 12px; display:flex; align-items:center; gap:8px; border-right:1px solid rgba(30,45,80,.3);
-    font-size:12px; font-weight:600; }
-.tl-label .ma { width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center;
-    font-size:10px; font-weight:800; flex-shrink:0; }
-.tl-dh { padding:8px; text-align:center; font-size:10px; font-weight:700; color:var(--text-3);
-    border-right:1px solid rgba(30,45,80,.2); text-transform:uppercase; }
-.tl-dh:last-child { border:none; }
-.tl-dh.today { color:var(--blue); background:rgba(59,130,246,.04); }
-.tl-cell { padding:6px 4px; display:flex; align-items:center; justify-content:center;
-    border-right:1px solid rgba(30,45,80,.2); min-height:42px; }
-.tl-cell:last-child { border:none; }
-.tl-cell.today { background:rgba(59,130,246,.03); }
-.tl-chip { padding:3px 8px; border-radius:5px; font-size:9px; font-weight:700; white-space:nowrap; letter-spacing:.2px; }
-.tl-chip.ready { background:var(--green-g); color:var(--green); }
-.tl-chip.cd { background:rgba(239,68,68,.08); color:rgba(239,68,68,.5); }
-.tl-chip.used { background:var(--blue-g); color:var(--blue); }
-.tl-chip.partial { background:var(--amber-g); color:var(--amber); }
+.chart-bar-group{display:flex;gap:3px;align-items:flex-end;height:120px;padding:0 4px}
+.chart-bar{flex:1;min-width:16px;max-width:40px;border-radius:4px 4px 0 0;transition:height .4s ease;position:relative;cursor:default}
+.chart-bar:hover{opacity:.8}
+.chart-bar .tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+    background:var(--bg-3);border:1px solid var(--border-2);border-radius:6px;padding:4px 8px;
+    font-size:10px;font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.chart-bar:hover .tip{opacity:1}
+.chart-labels{display:flex;gap:3px;padding:4px 4px 0}
+.chart-labels span{flex:1;min-width:16px;max-width:40px;text-align:center;font-size:8px;color:var(--text-3);overflow:hidden}
+.chart-container{padding:16px}.chart-title{font-size:12px;font-weight:700;margin-bottom:12px;color:var(--text-2)}
 
-/* CHARTS */
-.chart-bar-group { display:flex; gap:3px; align-items:flex-end; height:120px; padding:0 4px; }
-.chart-bar { flex:1; min-width:16px; max-width:40px; border-radius:4px 4px 0 0; transition:height .4s ease;
-    position:relative; cursor:default; }
-.chart-bar:hover { opacity:.8; }
-.chart-bar .tip { position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
-    background:var(--bg-3); border:1px solid var(--border-2); border-radius:6px; padding:4px 8px;
-    font-size:10px; font-weight:600; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .2s; z-index:10; }
-.chart-bar:hover .tip { opacity:1; }
-.chart-labels { display:flex; gap:3px; padding:4px 4px 0; }
-.chart-labels span { flex:1; min-width:16px; max-width:40px; text-align:center; font-size:8px;
-    color:var(--text-3); overflow:hidden; }
-.chart-container { padding:16px; }
-.chart-title { font-size:12px; font-weight:700; margin-bottom:12px; color:var(--text-2); }
+.fc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.fc-card{background:var(--bg-3);border:1px solid var(--border-1);border-radius:var(--r);padding:12px;text-align:center}
+.fc-card.today{border-color:var(--blue);box-shadow:0 0 12px var(--blue-g)}
+.fc-date{font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:6px}
+.fc-count{font-size:24px;font-weight:900}
+.fc-label{font-size:9px;color:var(--text-3);margin-top:2px;text-transform:uppercase}
+.fc-domains{margin-top:8px;display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.fc-domains .fc-d{font-size:9px;padding:2px 6px;background:var(--bg-2);border-radius:4px;color:var(--text-2);border:1px solid var(--border-1)}
 
-/* FORECAST */
-.fc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; }
-.fc-card { background:var(--bg-3); border:1px solid var(--border-1); border-radius:var(--r); padding:12px; text-align:center; }
-.fc-card.today { border-color:var(--blue); box-shadow:0 0 12px var(--blue-g); }
-.fc-date { font-size:11px; font-weight:700; color:var(--text-2); margin-bottom:6px; }
-.fc-count { font-size:24px; font-weight:900; }
-.fc-label { font-size:9px; color:var(--text-3); margin-top:2px; text-transform:uppercase; }
-.fc-domains { margin-top:8px; display:flex; flex-wrap:wrap; gap:3px; justify-content:center; }
-.fc-domains .fc-d { font-size:9px; padding:2px 6px; background:var(--bg-2); border-radius:4px;
-    color:var(--text-2); border:1px solid var(--border-1); }
-
-/* MODAL */
-.modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(8px);
-    display:flex; align-items:center; justify-content:center; z-index:1000;
-    opacity:0; visibility:hidden; transition:all .25s; }
-.modal-bg.on { opacity:1; visibility:visible; }
-.modal { background:var(--bg-1); border:1px solid var(--border-1); border-radius:var(--r3);
-    padding:24px; width:460px; max-width:92vw; max-height:90vh; overflow-y:auto;
-    transform:translateY(16px) scale(.97); transition:all .25s; box-shadow:0 16px 48px rgba(0,0,0,.5); }
-.modal-bg.on .modal { transform:translateY(0) scale(1); }
-.modal-title { font-size:16px; font-weight:800; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
-.fg { margin-bottom:14px; }
-.fg label { display:block; font-size:11px; font-weight:600; color:var(--text-3); margin-bottom:5px;
-    text-transform:uppercase; letter-spacing:.5px; }
-.fg input,.fg select,.fg textarea { width:100%; padding:10px 12px; background:var(--bg-0); border:1px solid var(--border-1);
-    border-radius:var(--r); color:var(--text-1); font-family:inherit; font-size:13px; outline:none; transition:all .2s; }
-.fg input:focus,.fg select:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-g); }
-.fg select { cursor:pointer; appearance:none;
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;visibility:hidden;transition:all .25s}
+.modal-bg.on{opacity:1;visibility:visible}
+.modal{background:var(--bg-1);border:1px solid var(--border-1);border-radius:var(--r3);
+    padding:24px;width:460px;max-width:92vw;max-height:90vh;overflow-y:auto;
+    transform:translateY(16px) scale(.97);transition:all .25s;box-shadow:0 16px 48px rgba(0,0,0,.5)}
+.modal-bg.on .modal{transform:translateY(0) scale(1)}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select,.fg textarea{width:100%;padding:10px 12px;background:var(--bg-0);border:1px solid var(--border-1);
+    border-radius:var(--r);color:var(--text-1);font-family:inherit;font-size:13px;outline:none;transition:all .2s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-g)}
+.fg select{cursor:pointer;appearance:none;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23556688' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 10px center; padding-right:30px; }
-.fg select option { background:var(--bg-1); }
-.fg-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.modal-foot { display:flex; gap:8px; justify-content:flex-end; margin-top:18px; }
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+.fg select option{background:var(--bg-1)}.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1;padding:8px 12px;background:var(--bg-3);border:1px solid var(--border-1);
+    border-radius:var(--r);color:var(--text-1);font-family:inherit;font-size:12px;outline:none}
+.search-bar input:focus{border-color:var(--blue)}
 
-/* SEARCH */
-.search-bar { display:flex; gap:8px; margin-bottom:12px; }
-.search-bar input { flex:1; padding:8px 12px; background:var(--bg-3); border:1px solid var(--border-1);
-    border-radius:var(--r); color:var(--text-1); font-family:inherit; font-size:12px; outline:none; }
-.search-bar input:focus { border-color:var(--blue); }
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(30,45,80,.3)}
+.setting-row:last-child{border:none}
+.setting-info .st{font-size:13px;font-weight:600}
+.setting-info .sd{font-size:11px;color:var(--text-3);margin-top:2px}
+.setting-control input{width:70px;padding:6px 8px;background:var(--bg-0);border:1px solid var(--border-1);
+    border-radius:var(--r);color:var(--text-1);font-family:inherit;font-size:13px;text-align:center;outline:none}
+.setting-control input:focus{border-color:var(--blue)}
 
-/* SETTINGS */
-.setting-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0;
-    border-bottom:1px solid rgba(30,45,80,.3); }
-.setting-row:last-child { border:none; }
-.setting-info .st { font-size:13px; font-weight:600; }
-.setting-info .sd { font-size:11px; color:var(--text-3); margin-top:2px; }
-.setting-control input { width:70px; padding:6px 8px; background:var(--bg-0); border:1px solid var(--border-1);
-    border-radius:var(--r); color:var(--text-1); font-family:inherit; font-size:13px; text-align:center; outline:none; }
-.setting-control input:focus { border-color:var(--blue); }
+.toasts{position:fixed;top:70px;right:16px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--bg-1);border:1px solid var(--border-1);border-radius:var(--r);padding:12px 16px;
+    display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;box-shadow:var(--shadow);
+    animation:toastIn .35s ease;min-width:260px}
+.toast.ok{border-left:3px solid var(--green)}.toast.err{border-left:3px solid var(--red)}.toast.inf{border-left:3px solid var(--blue)}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
-/* TOAST */
-.toasts { position:fixed; top:70px; right:16px; z-index:2000; display:flex; flex-direction:column; gap:8px; }
-.toast { background:var(--bg-1); border:1px solid var(--border-1); border-radius:var(--r); padding:12px 16px;
-    display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; box-shadow:var(--shadow);
-    animation:toastIn .35s ease; min-width:260px; }
-.toast.ok { border-left:3px solid var(--green); }
-.toast.err { border-left:3px solid var(--red); }
-.toast.inf { border-left:3px solid var(--blue); }
-@keyframes toastIn { from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)} }
-
-/* COLORS */
-.c0{background:rgba(59,130,246,.15);color:#60a5fa} .c1{background:rgba(139,92,246,.15);color:#a78bfa}
-.c2{background:rgba(16,185,129,.15);color:#34d399} .c3{background:rgba(245,158,11,.15);color:#fbbf24}
-.c4{background:rgba(236,72,153,.15);color:#f472b6} .c5{background:rgba(6,182,212,.15);color:#22d3ee}
-.c6{background:rgba(251,146,60,.15);color:#fb923c} .c7{background:rgba(168,85,247,.15);color:#c084fc}
+.c0{background:rgba(59,130,246,.15);color:#60a5fa}.c1{background:rgba(139,92,246,.15);color:#a78bfa}
+.c2{background:rgba(16,185,129,.15);color:#34d399}.c3{background:rgba(245,158,11,.15);color:#fbbf24}
+.c4{background:rgba(236,72,153,.15);color:#f472b6}.c5{background:rgba(6,182,212,.15);color:#22d3ee}
+.c6{background:rgba(251,146,60,.15);color:#fb923c}.c7{background:rgba(168,85,247,.15);color:#c084fc}
 .uc0{background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(139,92,246,.25))}
 .uc1{background:linear-gradient(135deg,rgba(16,185,129,.25),rgba(6,182,212,.25))}
 .uc2{background:linear-gradient(135deg,rgba(245,158,11,.25),rgba(251,146,60,.25))}
 .uc3{background:linear-gradient(135deg,rgba(236,72,153,.25),rgba(239,68,68,.25))}
-
-.empty { text-align:center; padding:36px 16px; color:var(--text-3); }
-.empty .ei { font-size:36px; margin-bottom:8px; opacity:.4; }
-.empty p { font-size:12px; }
-
-.two { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-@media(max-width:1100px) { .two{grid-template-columns:1fr} }
-@media(max-width:900px) { .stats{grid-template-columns:repeat(3,1fr)} .dom-grid{grid-template-columns:1fr} }
-@media(max-width:600px) { .stats{grid-template-columns:repeat(2,1fr)} .app{padding:12px 12px 60px}
-    .header{padding:0 12px} .tl-hdr,.tl-row{grid-template-columns:100px repeat(7,1fr)} }
-
-/* Pulse animation for active domains */
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
-.pulse { animation:pulse 2s ease-in-out infinite; }
+.empty{text-align:center;padding:36px 16px;color:var(--text-3)}
+.empty .ei{font-size:36px;margin-bottom:8px;opacity:.4}.empty p{font-size:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:1100px){.two{grid-template-columns:1fr}}
+@media(max-width:900px){.stats{grid-template-columns:repeat(3,1fr)}.dom-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}.app{padding:12px 12px 60px}
+    .header{padding:0 12px}.tl-hdr,.tl-row{grid-template-columns:100px repeat(7,1fr)}}
     </style>
 </head>
 <body>
@@ -319,43 +256,32 @@ tbody tr:last-child td { border:none; }
             <div class="logo-icon">🔄</div>
             <div><h1>GSuite Rotation Tracker</h1><span>Domain cooldown & production monitor</span></div>
         </div>
-        <div class="header-actions">
+        <div class="header-right">
+            <div class="conn local" id="connStatus"><span class="conn-dot"></span><span id="connText">Local Mode</span></div>
             <div class="clock"><b id="hDate"></b><span id="hTime"></span></div>
         </div>
     </div>
 </header>
 
 <main class="app">
-    <!-- STATS -->
-    <div class="stats">
-        <div class="stat">
-            <div class="stat-label">Total Domain</div>
-            <div class="stat-val" id="s0">0</div>
-            <div class="stat-sub">GSuite terdaftar</div>
+    <!-- Setup Banner -->
+    <div class="setup-banner" id="setupBanner">
+        <div class="icon">⚠️</div>
+        <div class="text">
+            <b>Firebase Belum Dikonfigurasi</b>
+            <p>Data hanya tersimpan di browser ini. Setup Firebase agar semua user bisa akses data yang sama.</p>
         </div>
-        <div class="stat">
-            <div class="stat-label">Ready</div>
-            <div class="stat-val" id="s1">0</div>
-            <div class="stat-sub" id="s1s">Siap dipakai hari ini</div>
-        </div>
-        <div class="stat">
-            <div class="stat-label">Cooldown</div>
-            <div class="stat-val" id="s2">0</div>
-            <div class="stat-sub" id="s2s">Sedang istirahat</div>
-        </div>
-        <div class="stat">
-            <div class="stat-label">Produksi Hari Ini</div>
-            <div class="stat-val" id="s3">0</div>
-            <div class="stat-sub" id="s3s">akun dibuat</div>
-        </div>
-        <div class="stat">
-            <div class="stat-label">Kapasitas Sisa</div>
-            <div class="stat-val" id="s4">0</div>
-            <div class="stat-sub" id="s4s">akun bisa dibuat hari ini</div>
-        </div>
+        <button class="btn btn-p" onclick="openM('fbSetup')">🔧 Setup Firebase</button>
     </div>
 
-    <!-- TABS -->
+    <div class="stats">
+        <div class="stat"><div class="stat-label">Total Domain</div><div class="stat-val" id="s0">0</div><div class="stat-sub">GSuite terdaftar</div></div>
+        <div class="stat"><div class="stat-label">Ready</div><div class="stat-val" id="s1">0</div><div class="stat-sub" id="s1s">Siap dipakai hari ini</div></div>
+        <div class="stat"><div class="stat-label">Cooldown</div><div class="stat-val" id="s2">0</div><div class="stat-sub" id="s2s">Sedang istirahat</div></div>
+        <div class="stat"><div class="stat-label">Produksi Hari Ini</div><div class="stat-val" id="s3">0</div><div class="stat-sub" id="s3s">akun dibuat</div></div>
+        <div class="stat"><div class="stat-label">Kapasitas Sisa</div><div class="stat-val" id="s4">0</div><div class="stat-sub" id="s4s">akun bisa dibuat hari ini</div></div>
+    </div>
+
     <div class="tabs">
         <button class="tab on" onclick="goTab('dash')">📊 Dashboard</button>
         <button class="tab" onclick="goTab('sched')">⚡ Jadwal Hari Ini</button>
@@ -379,10 +305,7 @@ tbody tr:last-child td { border:none; }
             <div class="dom-grid" id="domGrid"></div>
         </div>
         <div class="sec">
-            <div class="sec-head">
-                <div class="sec-title">👥 User (Operator)</div>
-                <button class="btn btn-s" onclick="openM('addUser')">＋ Tambah User</button>
-            </div>
+            <div class="sec-head"><div class="sec-title">👥 User (Operator)</div><button class="btn btn-s" onclick="openM('addUser')">＋ Tambah User</button></div>
             <div class="user-grid" id="userGrid"></div>
         </div>
     </div>
@@ -397,9 +320,7 @@ tbody tr:last-child td { border:none; }
                     <button class="btn btn-p" onclick="openM('addLog')">📝 Catat Produksi</button>
                 </div>
             </div>
-            <div class="card tbl-wrap"><table><thead><tr>
-                <th>Domain</th><th>Status</th><th>Operator</th><th>Produksi</th><th>Progress</th><th>Aksi</th>
-            </tr></thead><tbody id="schedBody"></tbody></table></div>
+            <div class="card tbl-wrap"><table><thead><tr><th>Domain</th><th>Status</th><th>Operator</th><th>Produksi</th><th>Progress</th><th>Aksi</th></tr></thead><tbody id="schedBody"></tbody></table></div>
         </div>
     </div>
 
@@ -421,9 +342,7 @@ tbody tr:last-child td { border:none; }
     <!-- FORECAST -->
     <div class="tab-body" id="t_fc">
         <div class="sec">
-            <div class="sec-head">
-                <div class="sec-title">🔮 Forecast Ketersediaan Domain (7 Hari ke Depan)</div>
-            </div>
+            <div class="sec-head"><div class="sec-title">🔮 Forecast Ketersediaan Domain (7 Hari)</div></div>
             <div class="fc-grid" id="fcGrid"></div>
         </div>
     </div>
@@ -439,42 +358,18 @@ tbody tr:last-child td { border:none; }
                     <button class="btn btn-d" onclick="clearLogs()">🗑 Hapus Semua</button>
                 </div>
             </div>
-            <div class="search-bar">
-                <input type="text" placeholder="🔍  Cari domain, user, atau catatan..." id="logSearch" oninput="renderLogs()">
-            </div>
-            <div class="card tbl-wrap"><table><thead><tr>
-                <th>Tanggal</th><th>Domain</th><th>Operator</th><th>Jumlah</th><th>Catatan</th><th>Aksi</th>
-            </tr></thead><tbody id="logBody"></tbody></table></div>
+            <div class="search-bar"><input type="text" placeholder="🔍  Cari domain, user, atau catatan..." id="logSearch" oninput="renderLogs()"></div>
+            <div class="card tbl-wrap"><table><thead><tr><th>Tanggal</th><th>Domain</th><th>Operator</th><th>Jumlah</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody id="logBody"></tbody></table></div>
         </div>
     </div>
 
     <!-- ANALYTICS -->
     <div class="tab-body" id="t_stats">
         <div class="two">
-            <div class="card">
-                <div class="chart-container">
-                    <div class="chart-title">📊 Produksi 14 Hari Terakhir</div>
-                    <div class="chart-bar-group" id="chart14"></div>
-                    <div class="chart-labels" id="chart14L"></div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="chart-container">
-                    <div class="chart-title">👤 Produksi per User (Total)</div>
-                    <div class="chart-bar-group" id="chartUser"></div>
-                    <div class="chart-labels" id="chartUserL"></div>
-                </div>
-            </div>
+            <div class="card"><div class="chart-container"><div class="chart-title">📊 Produksi 14 Hari Terakhir</div><div class="chart-bar-group" id="chart14"></div><div class="chart-labels" id="chart14L"></div></div></div>
+            <div class="card"><div class="chart-container"><div class="chart-title">👤 Produksi per User (Total)</div><div class="chart-bar-group" id="chartUser"></div><div class="chart-labels" id="chartUserL"></div></div></div>
         </div>
-        <div class="sec" style="margin-top:16px">
-            <div class="card">
-                <div class="chart-container">
-                    <div class="chart-title">🌐 Utilisasi Domain (Total Akun yang Diproduksi)</div>
-                    <div class="chart-bar-group" id="chartDom"></div>
-                    <div class="chart-labels" id="chartDomL"></div>
-                </div>
-            </div>
-        </div>
+        <div class="sec" style="margin-top:16px"><div class="card"><div class="chart-container"><div class="chart-title">🌐 Utilisasi Domain (Total Akun)</div><div class="chart-bar-group" id="chartDom"></div><div class="chart-labels" id="chartDomL"></div></div></div></div>
     </div>
 
     <!-- SETTINGS -->
@@ -483,23 +378,18 @@ tbody tr:last-child td { border:none; }
             <div class="card" style="padding:20px">
                 <div class="sec-title" style="margin-bottom:16px">⚙️ Pengaturan</div>
                 <div class="setting-row">
-                    <div class="setting-info"><div class="st">Cooldown (Hari)</div>
-                        <div class="sd">Berapa hari domain harus istirahat setelah dipakai</div></div>
-                    <div class="setting-control">
-                        <input type="number" id="cfgCD" min="1" max="30" value="3" onchange="saveCfg()">
-                    </div>
+                    <div class="setting-info"><div class="st">Cooldown (Hari)</div><div class="sd">Berapa hari domain istirahat setelah dipakai</div></div>
+                    <div class="setting-control"><input type="number" id="cfgCD" min="1" max="30" value="3" onchange="saveCfg()"></div>
                 </div>
                 <div class="setting-row">
-                    <div class="setting-info"><div class="st">Max Akun per Domain/Hari</div>
-                        <div class="sd">Batas maksimal akun yang bisa diproduksi per domain per hari</div></div>
-                    <div class="setting-control">
-                        <input type="number" id="cfgMax" min="1" max="1000" value="30" onchange="saveCfg()">
-                    </div>
+                    <div class="setting-info"><div class="st">Max Akun per Domain/Hari</div><div class="sd">Batas maksimal akun per domain per hari</div></div>
+                    <div class="setting-control"><input type="number" id="cfgMax" min="1" max="1000" value="30" onchange="saveCfg()"></div>
                 </div>
             </div>
             <div class="card" style="padding:20px">
-                <div class="sec-title" style="margin-bottom:16px">💾 Data Management</div>
+                <div class="sec-title" style="margin-bottom:16px">💾 Data & Firebase</div>
                 <div style="display:flex;flex-direction:column;gap:10px">
+                    <button class="btn btn-p" onclick="openM('fbSetup')" style="justify-content:center">🔧 Setup / Edit Firebase Config</button>
                     <button class="btn btn-s" onclick="exportJSON()" style="justify-content:center">📦 Export Backup (JSON)</button>
                     <button class="btn btn-s" onclick="document.getElementById('importFile').click()" style="justify-content:center">📂 Import Backup (JSON)</button>
                     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
@@ -512,87 +402,78 @@ tbody tr:last-child td { border:none; }
     </div>
 </main>
 
-<!-- TOASTS -->
 <div class="toasts" id="toastBox"></div>
 
-<!-- ADD DOMAIN -->
-<div class="modal-bg" id="m_addDom">
-    <div class="modal">
-        <div class="modal-title">🌐 Tambah Domain</div>
-        <div class="fg"><label>Nama Domain</label><input id="inDom" placeholder="contoh: company.com"></div>
-        <div class="modal-foot">
-            <button class="btn btn-s" onclick="closeM('addDom')">Batal</button>
-            <button class="btn btn-p" onclick="addDomain()">Tambah</button>
-        </div>
-    </div>
-</div>
+<!-- MODALS -->
+<div class="modal-bg" id="m_addDom"><div class="modal">
+    <div class="modal-title">🌐 Tambah Domain</div>
+    <div class="fg"><label>Nama Domain</label><input id="inDom" placeholder="contoh: company.com"></div>
+    <div class="modal-foot"><button class="btn btn-s" onclick="closeM('addDom')">Batal</button><button class="btn btn-p" onclick="addDomain()">Tambah</button></div>
+</div></div>
 
-<!-- BULK ADD -->
-<div class="modal-bg" id="m_bulkDom">
-    <div class="modal">
-        <div class="modal-title">📋 Bulk Tambah Domain</div>
-        <div class="fg"><label>Masukkan domain (satu per baris)</label>
-            <textarea id="inBulk" rows="8" placeholder="domain1.com&#10;domain2.com&#10;domain3.com" style="resize:vertical"></textarea>
-        </div>
-        <div class="modal-foot">
-            <button class="btn btn-s" onclick="closeM('bulkDom')">Batal</button>
-            <button class="btn btn-p" onclick="bulkAddDomain()">Tambah Semua</button>
-        </div>
-    </div>
-</div>
+<div class="modal-bg" id="m_bulkDom"><div class="modal">
+    <div class="modal-title">📋 Bulk Tambah Domain</div>
+    <div class="fg"><label>Masukkan domain (satu per baris)</label><textarea id="inBulk" rows="8" placeholder="domain1.com&#10;domain2.com&#10;domain3.com" style="resize:vertical"></textarea></div>
+    <div class="modal-foot"><button class="btn btn-s" onclick="closeM('bulkDom')">Batal</button><button class="btn btn-p" onclick="bulkAddDomain()">Tambah Semua</button></div>
+</div></div>
 
-<!-- ADD USER -->
-<div class="modal-bg" id="m_addUser">
-    <div class="modal">
-        <div class="modal-title">👤 Tambah User</div>
-        <div class="fg"><label>Nama User</label><input id="inUser" placeholder="contoh: Budi"></div>
-        <div class="modal-foot">
-            <button class="btn btn-s" onclick="closeM('addUser')">Batal</button>
-            <button class="btn btn-p" onclick="addUser()">Tambah</button>
-        </div>
-    </div>
-</div>
+<div class="modal-bg" id="m_addUser"><div class="modal">
+    <div class="modal-title">👤 Tambah User</div>
+    <div class="fg"><label>Nama User</label><input id="inUser" placeholder="contoh: Budi"></div>
+    <div class="modal-foot"><button class="btn btn-s" onclick="closeM('addUser')">Batal</button><button class="btn btn-p" onclick="addUser()">Tambah</button></div>
+</div></div>
 
-<!-- LOG PRODUCTION -->
-<div class="modal-bg" id="m_addLog">
-    <div class="modal">
-        <div class="modal-title">📝 Catat Produksi</div>
-        <div class="fg-row">
-            <div class="fg"><label>Domain</label><select id="logDom"></select></div>
-            <div class="fg"><label>Operator</label><select id="logUser"></select></div>
-        </div>
-        <div class="fg-row">
-            <div class="fg"><label>Jumlah Akun</label><input type="number" id="logCount" min="1" value="30"></div>
-            <div class="fg"><label>Tanggal</label><input type="date" id="logDate"></div>
-        </div>
-        <div class="fg"><label>Catatan</label><input id="logNote" placeholder="Opsional..."></div>
-        <div class="modal-foot">
-            <button class="btn btn-s" onclick="closeM('addLog')">Batal</button>
-            <button class="btn btn-p" onclick="logProd()">Simpan</button>
-        </div>
+<div class="modal-bg" id="m_addLog"><div class="modal">
+    <div class="modal-title">📝 Catat Produksi</div>
+    <div class="fg-row"><div class="fg"><label>Domain</label><select id="logDom"></select></div><div class="fg"><label>Operator</label><select id="logUser"></select></div></div>
+    <div class="fg-row"><div class="fg"><label>Jumlah Akun</label><input type="number" id="logCount" min="1" value="30"></div><div class="fg"><label>Tanggal</label><input type="date" id="logDate"></div></div>
+    <div class="fg"><label>Catatan</label><input id="logNote" placeholder="Opsional..."></div>
+    <div class="modal-foot"><button class="btn btn-s" onclick="closeM('addLog')">Batal</button><button class="btn btn-p" onclick="logProd()">Simpan</button></div>
+</div></div>
+
+<!-- Firebase Setup Modal -->
+<div class="modal-bg" id="m_fbSetup"><div class="modal" style="width:540px">
+    <div class="modal-title">🔧 Setup Firebase</div>
+    <div style="background:var(--bg-3);border-radius:var(--r);padding:14px;margin-bottom:16px;font-size:12px;color:var(--text-2);line-height:1.7">
+        <b style="color:var(--text-1)">Cara mendapatkan Firebase Config:</b><br>
+        1. Buka <a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue)">console.firebase.google.com</a><br>
+        2. Klik <b>"Add Project"</b> → buat project baru<br>
+        3. Di project, klik ⚙️ <b>Project Settings</b><br>
+        4. Scroll ke bawah, klik <b>"Add App"</b> → pilih <b>Web (&lt;/&gt;)</b><br>
+        5. Copy <b>firebaseConfig</b> object-nya<br>
+        6. Di menu kiri, klik <b>"Realtime Database"</b> → <b>"Create Database"</b><br>
+        7. Pilih region → Start in <b>Test Mode</b> → Enable<br>
+        8. Paste config di bawah ini:
     </div>
-</div>
+    <div class="fg"><label>API Key</label><input id="fb_apiKey" placeholder="AIzaSy..."></div>
+    <div class="fg"><label>Auth Domain</label><input id="fb_authDomain" placeholder="your-project.firebaseapp.com"></div>
+    <div class="fg"><label>Database URL</label><input id="fb_dbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>
+    <div class="fg"><label>Project ID</label><input id="fb_projectId" placeholder="your-project-id"></div>
+    <div class="fg"><label>App ID</label><input id="fb_appId" placeholder="1:123456:web:abc123"></div>
+    <div class="modal-foot">
+        <button class="btn btn-d" onclick="disconnectFB()">🔌 Disconnect</button>
+        <button class="btn btn-s" onclick="closeM('fbSetup')">Batal</button>
+        <button class="btn btn-p" onclick="connectFB()">🔗 Connect & Sync</button>
+    </div>
+</div></div>
 
 <script>
-// ===== STATE =====
-const KEY = 'gsuite_v3';
+// ==================== STATE ====================
 let S = { domains:[], users:[], logs:[], cfg:{ cooldown:3, maxAcc:30 } };
+let db = null; // Firebase DB reference
+let fbConnected = false;
 let tlOff = 0;
+let listeners = []; // Firebase listener cleanup
 
-const save = () => localStorage.setItem(KEY, JSON.stringify(S));
-function load() {
-    try { const d = JSON.parse(localStorage.getItem(KEY)); if(d){S={...S,...d};if(!S.cfg)S.cfg={cooldown:3,maxAcc:30}} } catch(e){}
-}
-
-// ===== HELPERS =====
+// ==================== HELPERS ====================
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const today = () => new Date().toISOString().split('T')[0];
-const addD = (d,n) => { const x=new Date(d+'T00:00:00'); x.setDate(x.getDate()+n); return x.toISOString().split('T')[0]; };
-const diffD = (a,b) => Math.floor((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/(864e5));
-const DAY_NAMES = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-const MON_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-function fmtDate(d) { const x=new Date(d+'T00:00:00'); return `${DAY_NAMES[x.getDay()]}, ${x.getDate()} ${MON_NAMES[x.getMonth()]} ${x.getFullYear()}`; }
-function fmtShort(d) { const x=new Date(d+'T00:00:00'); return `${DAY_NAMES[x.getDay()]}<br>${x.getDate()}/${x.getMonth()+1}`; }
+const getToday = () => new Date().toISOString().split('T')[0];
+const addDays = (d,n) => { const x=new Date(d+'T00:00:00'); x.setDate(x.getDate()+n); return x.toISOString().split('T')[0]; };
+const diffDays = (a,b) => Math.floor((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/(864e5));
+const DAYS = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+const MONS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function fmtDate(d) { const x=new Date(d+'T00:00:00'); return `${DAYS[x.getDay()]}, ${x.getDate()} ${MONS[x.getMonth()]} ${x.getFullYear()}`; }
+function fmtShort(d) { const x=new Date(d+'T00:00:00'); return `${DAYS[x.getDay()]}<br>${x.getDate()}/${x.getMonth()+1}`; }
 
 function domStatus(domId, date) {
     const logs = S.logs.filter(l=>l.domId===domId);
@@ -600,19 +481,165 @@ function domStatus(domId, date) {
     const cnt = dayLogs.reduce((s,l)=>s+l.count,0);
     if(cnt > 0) return { st:'used', count:cnt, logs:dayLogs };
     const past = logs.filter(l=>l.date<date).sort((a,b)=>b.date.localeCompare(a.date));
-    if(past.length) {
-        const diff = diffD(past[0].date, date);
-        if(diff <= S.cfg.cooldown) return { st:'cd', left:S.cfg.cooldown-diff+1, last:past[0].date };
-    }
+    if(past.length) { const diff = diffDays(past[0].date, date); if(diff <= S.cfg.cooldown) return { st:'cd', left:S.cfg.cooldown-diff+1, last:past[0].date }; }
     return { st:'ready', count:0 };
 }
+function domTotal(id) { return S.logs.filter(l=>l.domId===id).reduce((s,l)=>s+l.count,0); }
+function domTimes(id) { return [...new Set(S.logs.filter(l=>l.domId===id).map(l=>l.date))].length; }
+function userTotal(id) { return S.logs.filter(l=>l.userId===id).reduce((s,l)=>s+l.count,0); }
+function userToday(id) { return S.logs.filter(l=>l.userId===id&&l.date===getToday()).reduce((s,l)=>s+l.count,0); }
 
-function domTotalProduced(domId) { return S.logs.filter(l=>l.domId===domId).reduce((s,l)=>s+l.count,0); }
-function domTimesUsed(domId) { return [...new Set(S.logs.filter(l=>l.domId===domId).map(l=>l.date))].length; }
-function userTotalProduced(userId) { return S.logs.filter(l=>l.userId===userId).reduce((s,l)=>s+l.count,0); }
-function userTodayProduced(userId) { return S.logs.filter(l=>l.userId===userId&&l.date===today()).reduce((s,l)=>s+l.count,0); }
+// ==================== DATA LAYER ====================
+// Abstraction: write to Firebase if connected, else localStorage
 
-// ===== TABS =====
+function saveLocal() { localStorage.setItem('gsuite_v3', JSON.stringify(S)); }
+function loadLocal() { try { const d=JSON.parse(localStorage.getItem('gsuite_v3')); if(d){S={...S,...d};if(!S.cfg)S.cfg={cooldown:3,maxAcc:30};if(!S.logs)S.logs=[]} } catch(e){} }
+
+function dbSet(path, val) {
+    if(db) { db.ref(path).set(val).catch(e=>toast('DB Error: '+e.message,'err')); }
+    else { saveLocal(); }
+}
+function dbRemove(path) {
+    if(db) { db.ref(path).remove().catch(e=>toast('DB Error: '+e.message,'err')); }
+    else { saveLocal(); }
+}
+function dbPush(path, val) {
+    if(db) { const ref=db.ref(path).push(); ref.set(val).catch(e=>toast('DB Error: '+e.message,'err')); return ref.key; }
+    else { saveLocal(); return null; }
+}
+
+// ==================== FIREBASE ====================
+function loadFBConfig() {
+    try { return JSON.parse(localStorage.getItem('fb_config')); } catch(e) { return null; }
+}
+function saveFBConfig(cfg) { localStorage.setItem('fb_config', JSON.stringify(cfg)); }
+
+function initFirebase(config) {
+    try {
+        // Cleanup existing listeners
+        listeners.forEach(fn=>fn());
+        listeners = [];
+
+        if(firebase.apps.length) { firebase.app().delete().then(()=>_initFB(config)).catch(()=>_initFB(config)); }
+        else { _initFB(config); }
+    } catch(e) { console.error('FB init error:', e); toast('Firebase error: '+e.message,'err'); useFallback(); }
+}
+
+function _initFB(config) {
+    firebase.initializeApp(config);
+    db = firebase.database();
+
+    // Connection status
+    const connRef = db.ref('.info/connected');
+    connRef.on('value', snap => {
+        fbConnected = snap.val() === true;
+        updateConnUI();
+    });
+
+    // Listen for data changes - realtime sync!
+    const domRef = db.ref('domains');
+    domRef.on('value', snap => {
+        const data = snap.val() || {};
+        S.domains = Object.entries(data).map(([id, v]) => ({id, ...v}));
+        renderAll();
+    });
+    listeners.push(() => domRef.off());
+
+    const userRef = db.ref('users');
+    userRef.on('value', snap => {
+        const data = snap.val() || {};
+        S.users = Object.entries(data).map(([id, v]) => ({id, ...v}));
+        renderAll();
+    });
+    listeners.push(() => userRef.off());
+
+    const logRef = db.ref('logs');
+    logRef.on('value', snap => {
+        const data = snap.val() || {};
+        S.logs = Object.entries(data).map(([id, v]) => ({id, ...v}));
+        renderAll();
+    });
+    listeners.push(() => logRef.off());
+
+    const cfgRef = db.ref('config');
+    cfgRef.on('value', snap => {
+        const data = snap.val();
+        if(data) { S.cfg = data; loadCfgUI(); }
+        renderAll();
+    });
+    listeners.push(() => cfgRef.off());
+
+    document.getElementById('setupBanner').classList.add('hidden');
+    updateConnUI();
+    toast('🔗 Firebase connected! Data realtime sync aktif.','ok');
+}
+
+function useFallback() {
+    db = null; fbConnected = false;
+    loadLocal(); updateConnUI(); renderAll();
+}
+
+function updateConnUI() {
+    const el = document.getElementById('connStatus');
+    const txt = document.getElementById('connText');
+    if(db && fbConnected) { el.className='conn on'; txt.textContent='🟢 Realtime Sync'; }
+    else if(db) { el.className='conn off'; txt.textContent='🔴 Reconnecting...'; }
+    else { el.className='conn local'; txt.textContent='⚡ Local Mode'; }
+}
+
+function connectFB() {
+    const config = {
+        apiKey: document.getElementById('fb_apiKey').value.trim(),
+        authDomain: document.getElementById('fb_authDomain').value.trim(),
+        databaseURL: document.getElementById('fb_dbUrl').value.trim(),
+        projectId: document.getElementById('fb_projectId').value.trim(),
+        appId: document.getElementById('fb_appId').value.trim(),
+    };
+    if(!config.apiKey || !config.databaseURL || !config.projectId) {
+        return toast('Isi minimal API Key, Database URL, dan Project ID!','err');
+    }
+    saveFBConfig(config);
+
+    // If we had local data, offer to upload it
+    const localData = localStorage.getItem('gsuite_v3');
+    let uploadLocal = false;
+    if(localData) {
+        try {
+            const ld = JSON.parse(localData);
+            if((ld.domains&&ld.domains.length)||(ld.logs&&ld.logs.length)) {
+                uploadLocal = confirm('Ada data lokal yang sudah ada. Upload data lokal ke Firebase?');
+            }
+        } catch(e){}
+    }
+
+    closeM('fbSetup');
+    initFirebase(config);
+
+    if(uploadLocal) {
+        setTimeout(() => {
+            const ld = JSON.parse(localData);
+            if(ld.domains) ld.domains.forEach(d => { const{id,...rest}=d; db.ref('domains/'+id).set(rest); });
+            if(ld.users) ld.users.forEach(u => { const{id,...rest}=u; db.ref('users/'+id).set(rest); });
+            if(ld.logs) ld.logs.forEach(l => { const{id,...rest}=l; db.ref('logs/'+id).set(rest); });
+            if(ld.cfg) db.ref('config').set(ld.cfg);
+            toast('📤 Data lokal berhasil di-upload ke Firebase!','ok');
+        }, 2000);
+    }
+}
+
+function disconnectFB() {
+    if(!confirm('Disconnect Firebase? App akan kembali ke Local Mode.')) return;
+    listeners.forEach(fn=>fn()); listeners=[];
+    if(firebase.apps.length) firebase.app().delete();
+    db = null; fbConnected = false;
+    localStorage.removeItem('fb_config');
+    closeM('fbSetup');
+    loadLocal(); updateConnUI(); renderAll();
+    document.getElementById('setupBanner').classList.remove('hidden');
+    toast('🔌 Firebase disconnected. Kembali ke Local Mode.','inf');
+}
+
+// ==================== TABS ====================
 function goTab(t) {
     document.querySelectorAll('.tab').forEach((el,i)=>{
         const tabs=['dash','sched','tl','fc','log','stats','cfg'];
@@ -620,28 +647,36 @@ function goTab(t) {
     });
     document.querySelectorAll('.tab-body').forEach(el=>el.classList.remove('on'));
     document.getElementById('t_'+t).classList.add('on');
-    if(t==='tl') renderTL();
-    if(t==='fc') renderFC();
-    if(t==='log') renderLogs();
-    if(t==='stats') renderCharts();
+    if(t==='tl') renderTL(); if(t==='fc') renderFC(); if(t==='log') renderLogs(); if(t==='stats') renderCharts();
 }
 
-// ===== MODALS =====
+// ==================== MODALS ====================
 function openM(id) {
     document.getElementById('m_'+id).classList.add('on');
     if(id==='addLog') populateLogForm();
+    if(id==='fbSetup') {
+        const cfg = loadFBConfig();
+        if(cfg) {
+            document.getElementById('fb_apiKey').value = cfg.apiKey||'';
+            document.getElementById('fb_authDomain').value = cfg.authDomain||'';
+            document.getElementById('fb_dbUrl').value = cfg.databaseURL||'';
+            document.getElementById('fb_projectId').value = cfg.projectId||'';
+            document.getElementById('fb_appId').value = cfg.appId||'';
+        }
+    }
     setTimeout(()=>{const i=document.querySelector('#m_'+id+' input,#m_'+id+' textarea');if(i)i.focus()},150);
 }
 function closeM(id) { document.getElementById('m_'+id).classList.remove('on'); }
 
-// ===== DOMAIN =====
+// ==================== DOMAIN CRUD ====================
 function addDomain() {
     const v = document.getElementById('inDom').value.trim();
     if(!v) return toast('Nama domain kosong!','err');
     if(S.domains.find(d=>d.name.toLowerCase()===v.toLowerCase())) return toast('Domain sudah ada!','err');
-    S.domains.push({id:uid(),name:v,at:today()});
-    document.getElementById('inDom').value='';
-    closeM('addDom'); save(); renderAll();
+    const id = uid();
+    const data = {name:v, at:getToday()};
+    if(db) { db.ref('domains/'+id).set(data); } else { S.domains.push({id,...data}); saveLocal(); renderAll(); }
+    document.getElementById('inDom').value=''; closeM('addDom');
     toast('Domain "'+v+'" ditambahkan!','ok');
 }
 
@@ -652,62 +687,66 @@ function bulkAddDomain() {
     let added=0, skip=0;
     lines.forEach(name => {
         if(S.domains.find(d=>d.name.toLowerCase()===name.toLowerCase())) { skip++; return; }
-        S.domains.push({id:uid(),name,at:today()});
+        const id = uid();
+        const data = {name, at:getToday()};
+        if(db) { db.ref('domains/'+id).set(data); } else { S.domains.push({id,...data}); }
         added++;
     });
-    document.getElementById('inBulk').value='';
-    closeM('bulkDom'); save(); renderAll();
-    toast(`${added} domain ditambahkan${skip?`, ${skip} di-skip (duplikat)`:''}`,'ok');
+    if(!db) { saveLocal(); renderAll(); }
+    document.getElementById('inBulk').value=''; closeM('bulkDom');
+    toast(`${added} domain ditambahkan${skip?`, ${skip} di-skip`:''}`,'ok');
 }
 
 function removeDomain(id) {
     const d=S.domains.find(x=>x.id===id);
     if(!d||!confirm(`Hapus "${d.name}" beserta semua log-nya?`)) return;
-    S.domains=S.domains.filter(x=>x.id!==id);
-    S.logs=S.logs.filter(l=>l.domId!==id);
-    save(); renderAll(); toast(`"${d.name}" dihapus.`,'inf');
+    if(db) {
+        db.ref('domains/'+id).remove();
+        // Remove related logs
+        S.logs.filter(l=>l.domId===id).forEach(l=>db.ref('logs/'+l.id).remove());
+    } else { S.domains=S.domains.filter(x=>x.id!==id); S.logs=S.logs.filter(l=>l.domId!==id); saveLocal(); renderAll(); }
+    toast(`"${d.name}" dihapus.`,'inf');
 }
 
-// ===== USER =====
+// ==================== USER CRUD ====================
 function addUser() {
     const v = document.getElementById('inUser').value.trim();
     if(!v) return toast('Nama user kosong!','err');
     if(S.users.find(u=>u.name.toLowerCase()===v.toLowerCase())) return toast('User sudah ada!','err');
-    S.users.push({id:uid(),name:v,at:today()});
-    document.getElementById('inUser').value='';
-    closeM('addUser'); save(); renderAll();
+    const id = uid();
+    const data = {name:v, at:getToday()};
+    if(db) { db.ref('users/'+id).set(data); } else { S.users.push({id,...data}); saveLocal(); renderAll(); }
+    document.getElementById('inUser').value=''; closeM('addUser');
     toast('User "'+v+'" ditambahkan!','ok');
 }
 
 function removeUser(id) {
     const u=S.users.find(x=>x.id===id);
     if(!u||!confirm(`Hapus "${u.name}"?`)) return;
-    S.users=S.users.filter(x=>x.id!==id);
-    save(); renderAll(); toast(`"${u.name}" dihapus.`,'inf');
+    if(db) { db.ref('users/'+id).remove(); } else { S.users=S.users.filter(x=>x.id!==id); saveLocal(); renderAll(); }
+    toast(`"${u.name}" dihapus.`,'inf');
 }
 
-// ===== PRODUCTION LOG =====
+// ==================== PRODUCTION LOG ====================
 function populateLogForm() {
     const ds=document.getElementById('logDom'), us=document.getElementById('logUser');
     ds.innerHTML='<option value="">-- Pilih Domain --</option>';
     S.domains.forEach(d=>{
-        const st=domStatus(d.id,today());
+        const st=domStatus(d.id,getToday());
         const lb = st.st==='cd'?` 🔴 CD ${st.left}h`:st.st==='used'?` 🔵 ${st.count}/${S.cfg.maxAcc}`:' 🟢 Ready';
         ds.innerHTML+=`<option value="${d.id}">${d.name}${lb}</option>`;
     });
     us.innerHTML='<option value="">-- Pilih Operator --</option>';
     S.users.forEach(u=>{ us.innerHTML+=`<option value="${u.id}">${u.name}</option>`; });
-    document.getElementById('logDate').value=today();
+    document.getElementById('logDate').value=getToday();
     document.getElementById('logCount').value=S.cfg.maxAcc;
     document.getElementById('logCount').max=S.cfg.maxAcc;
 }
 
 function logProd() {
-    const domId=document.getElementById('logDom').value;
-    const userId=document.getElementById('logUser').value;
+    const domId=document.getElementById('logDom').value, userId=document.getElementById('logUser').value;
     const count=parseInt(document.getElementById('logCount').value)||0;
-    const date=document.getElementById('logDate').value;
-    const note=document.getElementById('logNote').value.trim();
+    const date=document.getElementById('logDate').value, note=document.getElementById('logNote').value.trim();
     if(!domId) return toast('Pilih domain!','err');
     if(!userId) return toast('Pilih operator!','err');
     if(count<1||count>S.cfg.maxAcc) return toast(`Jumlah harus 1-${S.cfg.maxAcc}!`,'err');
@@ -716,58 +755,66 @@ function logProd() {
     if(exist+count>S.cfg.maxAcc) return toast(`Sudah ${exist} akun hari ini. Max ${S.cfg.maxAcc}.`,'err');
     const st=domStatus(domId,date);
     if(st.st==='cd'&&!confirm(`⚠️ Domain masih cooldown (${st.left} hari lagi). Tetap lanjut?`)) return;
-    S.logs.push({id:uid(),date,domId,userId,count,note,at:new Date().toISOString()});
+    const id=uid(), data={date,domId,userId,count,note,at:new Date().toISOString()};
+    if(db) { db.ref('logs/'+id).set(data); } else { S.logs.push({id,...data}); saveLocal(); renderAll(); }
     closeM('addLog'); document.getElementById('logNote').value='';
-    save(); renderAll();
     const dn=S.domains.find(d=>d.id===domId), un=S.users.find(u=>u.id===userId);
     toast(`✅ ${count} akun → ${dn?.name} oleh ${un?.name}`,'ok');
 }
 
 function removeLog(id) {
     if(!confirm('Hapus log ini?')) return;
-    S.logs=S.logs.filter(l=>l.id!==id); save(); renderAll(); toast('Log dihapus.','inf');
+    if(db) { db.ref('logs/'+id).remove(); } else { S.logs=S.logs.filter(l=>l.id!==id); saveLocal(); renderAll(); }
+    toast('Log dihapus.','inf');
 }
 
 function clearLogs() {
     if(!confirm('⚠️ Hapus SEMUA log produksi?')) return;
-    S.logs=[]; save(); renderAll(); toast('Semua log dihapus.','inf');
+    if(db) { db.ref('logs').remove(); } else { S.logs=[]; saveLocal(); renderAll(); }
+    toast('Semua log dihapus.','inf');
 }
 
-// ===== AUTO ASSIGN =====
+function quickLog(domId) { openM('addLog'); setTimeout(()=>document.getElementById('logDom').value=domId,100); }
+
+// ==================== AUTO ASSIGN ====================
 function autoAssign() {
-    const t=today();
+    const t=getToday();
     const avail=S.domains.filter(d=>domStatus(d.id,t).st==='ready');
     if(!avail.length) return toast('Tidak ada domain ready hari ini!','err');
     if(!S.users.length) return toast('Tambahkan user dulu!','err');
-    const existing=S.logs.filter(l=>l.date===t);
-    const usedDomIds=new Set(existing.map(l=>l.domId));
-    const fresh=avail.filter(d=>!usedDomIds.has(d.id));
+    const usedIds=new Set(S.logs.filter(l=>l.date===t).map(l=>l.domId));
+    const fresh=avail.filter(d=>!usedIds.has(d.id));
     if(!fresh.length) return toast('Semua domain ready sudah di-assign!','inf');
     let n=0;
     fresh.forEach((d,i)=>{
         const u=S.users[i%S.users.length];
-        S.logs.push({id:uid(),date:t,domId:d.id,userId:u.id,count:S.cfg.maxAcc,note:'Auto-assign',at:new Date().toISOString()});
+        const id=uid(), data={date:t,domId:d.id,userId:u.id,count:S.cfg.maxAcc,note:'Auto-assign',at:new Date().toISOString()};
+        if(db) { db.ref('logs/'+id).set(data); } else { S.logs.push({id,...data}); }
         n++;
     });
-    save(); renderAll();
+    if(!db) { saveLocal(); renderAll(); }
     toast(`🤖 ${n} domain di-assign ke ${S.users.length} user!`,'ok');
 }
 
-// ===== SETTINGS =====
+// ==================== SETTINGS ====================
 function saveCfg() {
     S.cfg.cooldown = Math.max(1, parseInt(document.getElementById('cfgCD').value)||3);
     S.cfg.maxAcc = Math.max(1, parseInt(document.getElementById('cfgMax').value)||30);
-    save(); renderAll(); toast('Settings disimpan!','ok');
+    if(db) { db.ref('config').set(S.cfg); } else { saveLocal(); renderAll(); }
+    toast('Settings disimpan!','ok');
+}
+function loadCfgUI() {
+    document.getElementById('cfgCD').value=S.cfg.cooldown;
+    document.getElementById('cfgMax').value=S.cfg.maxAcc;
 }
 
-// ===== EXPORT / IMPORT =====
+// ==================== EXPORT / IMPORT ====================
 function exportJSON() {
     const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`gsuite_backup_${today()}.json`; a.click(); URL.revokeObjectURL(a.href);
+    a.download=`gsuite_backup_${getToday()}.json`; a.click(); URL.revokeObjectURL(a.href);
     toast('📦 Backup JSON di-download!','ok');
 }
-
 function importJSON(e) {
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
@@ -776,14 +823,19 @@ function importJSON(e) {
             const d=JSON.parse(ev.target.result);
             if(!d.domains||!d.users) throw 0;
             if(!confirm(`Import ${d.domains.length} domain, ${d.users.length} user, ${d.logs?.length||0} log?\nData saat ini akan ditimpa.`)) return;
-            S=d; if(!S.cfg) S.cfg={cooldown:3,maxAcc:30}; if(!S.logs) S.logs=[];
-            save(); renderAll(); loadCfg();
+            if(db) {
+                db.ref().set(null).then(()=>{
+                    d.domains.forEach(x=>{const{id,...rest}=x;db.ref('domains/'+id).set(rest)});
+                    d.users.forEach(x=>{const{id,...rest}=x;db.ref('users/'+id).set(rest)});
+                    (d.logs||[]).forEach(x=>{const{id,...rest}=x;db.ref('logs/'+id).set(rest)});
+                    if(d.cfg) db.ref('config').set(d.cfg);
+                });
+            } else { S=d; if(!S.cfg)S.cfg={cooldown:3,maxAcc:30}; if(!S.logs)S.logs=[]; saveLocal(); renderAll(); loadCfgUI(); }
             toast('📂 Data berhasil di-import!','ok');
         } catch(ex) { toast('File tidak valid!','err'); }
     };
     r.readAsText(f); e.target.value='';
 }
-
 function exportCSV() {
     if(!S.logs.length) return toast('Tidak ada log!','err');
     const h=['Tanggal','Domain','Operator','Jumlah Akun','Catatan'];
@@ -793,136 +845,76 @@ function exportCSV() {
     });
     const csv=[h,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
     const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=`gsuite_log_${today()}.csv`; a.click(); URL.revokeObjectURL(a.href);
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`gsuite_log_${getToday()}.csv`; a.click();
     toast('📥 CSV di-download!','ok');
 }
-
 function resetAll() {
     if(!confirm('⚠️ HAPUS SEMUA DATA? Ini tidak bisa dibatalkan!')) return;
-    S={domains:[],users:[],logs:[],cfg:{cooldown:3,maxAcc:30}};
-    save(); renderAll(); loadCfg(); toast('Data direset.','inf');
+    if(db) { db.ref().set(null); } else { S={domains:[],users:[],logs:[],cfg:{cooldown:3,maxAcc:30}}; saveLocal(); renderAll(); loadCfgUI(); }
+    toast('Data direset.','inf');
 }
 
-// ===== RENDER =====
-function renderAll() { renderDomains(); renderUsers(); renderSched(); renderStats_(); renderTL(); renderFC(); renderLogs(); renderCharts(); }
+// ==================== RENDER ====================
+function renderAll() { renderDomains(); renderUsers(); renderSched(); renderStatsBar(); renderTL(); renderFC(); renderLogs(); renderCharts(); }
 
 function renderDomains() {
     const el=document.getElementById('domGrid');
-    if(!S.domains.length) { el.innerHTML='<div class="empty"><div class="ei">🌐</div><p>Belum ada domain. Klik "Tambah Domain" untuk mulai!</p></div>'; return; }
+    if(!S.domains.length){el.innerHTML='<div class="empty"><div class="ei">🌐</div><p>Belum ada domain. Klik "Tambah Domain"!</p></div>';return}
     el.innerHTML=S.domains.map((d,i)=>{
-        const st=domStatus(d.id,today());
-        const ci=i%8;
-        const total=domTotalProduced(d.id);
-        const times=domTimesUsed(d.id);
+        const st=domStatus(d.id,getToday()), ci=i%8, total=domTotal(d.id), times=domTimes(d.id);
         let badge='',ringColor='var(--green)',ringPct=100,ringText='✓';
-        if(st.st==='ready') { badge='<span class="badge badge-g">Ready</span>'; }
-        else if(st.st==='cd') {
-            badge=`<span class="badge badge-r">CD ${st.left}h</span>`;
-            ringColor='var(--red)'; ringPct=((S.cfg.cooldown-st.left+1)/S.cfg.cooldown)*100; ringText=st.left+'h';
-        } else {
-            const pct=Math.round(st.count/S.cfg.maxAcc*100);
-            badge=st.count>=S.cfg.maxAcc?'<span class="badge badge-b">Full</span>':`<span class="badge badge-a">${st.count}/${S.cfg.maxAcc}</span>`;
-            ringColor=st.count>=S.cfg.maxAcc?'var(--blue)':'var(--amber)';
-            ringPct=pct; ringText=pct+'%';
-        }
-        const circ=2*Math.PI*19;
-        const dash=circ*(1-ringPct/100);
-        return `<div class="dom-card">
-            <div class="dom-card-top">
-                <div class="dom-card-info">
-                    <div class="dom-avatar c${ci}">${d.name.charAt(0).toUpperCase()}</div>
-                    <div><div class="dom-name">${d.name}</div><div class="dom-sub">Sejak ${fmtDate(d.at)}</div></div>
-                </div>
-                ${badge}
-            </div>
-            <div class="dom-card-body">
-                <div class="cooldown-ring">
-                    <svg viewBox="0 0 48 48"><circle class="bg" cx="24" cy="24" r="19"/><circle class="fg" cx="24" cy="24" r="19"
-                        stroke="${ringColor}" stroke-dasharray="${circ}" stroke-dashoffset="${dash}"/></svg>
-                    <div class="center" style="color:${ringColor}">${ringText}</div>
-                </div>
-                <div class="dom-card-stats">
-                    <div class="dom-stat-row"><span class="label">Total Produksi</span><span class="val">${total} akun</span></div>
-                    <div class="dom-stat-row"><span class="label">Kali Dipakai</span><span class="val">${times}×</span></div>
-                    ${st.st==='cd'?`<div class="dom-stat-row"><span class="label">Available</span><span class="val" style="color:var(--green)">${fmtDate(addD(st.last,S.cfg.cooldown+1))}</span></div>`:''}
-                    ${st.st==='used'&&st.logs?`<div class="dom-stat-row"><span class="label">Operator</span><span class="val">${st.logs.map(l=>{const u=S.users.find(x=>x.id===l.userId);return u?.name||'?'}).join(', ')}</span></div>`:''}
-                </div>
-            </div>
-            <div class="dom-card-footer">
-                <button class="btn btn-d btn-icon" onclick="removeDomain('${d.id}')" title="Hapus">✕</button>
-            </div>
-        </div>`;
+        if(st.st==='ready'){badge='<span class="badge badge-g">Ready</span>'}
+        else if(st.st==='cd'){badge=`<span class="badge badge-r">CD ${st.left}h</span>`;ringColor='var(--red)';ringPct=((S.cfg.cooldown-st.left+1)/S.cfg.cooldown)*100;ringText=st.left+'h'}
+        else{const p=Math.round(st.count/S.cfg.maxAcc*100);badge=st.count>=S.cfg.maxAcc?'<span class="badge badge-b">Full</span>':`<span class="badge badge-a">${st.count}/${S.cfg.maxAcc}</span>`;ringColor=st.count>=S.cfg.maxAcc?'var(--blue)':'var(--amber)';ringPct=p;ringText=p+'%'}
+        const c=2*Math.PI*19, dash=c*(1-ringPct/100);
+        return `<div class="dom-card"><div class="dom-card-top"><div class="dom-card-info"><div class="dom-avatar c${ci}">${d.name[0].toUpperCase()}</div><div><div class="dom-name">${d.name}</div><div class="dom-sub">Sejak ${fmtDate(d.at)}</div></div></div>${badge}</div>
+        <div class="dom-card-body"><div class="cooldown-ring"><svg viewBox="0 0 48 48"><circle class="bg" cx="24" cy="24" r="19"/><circle class="fg" cx="24" cy="24" r="19" stroke="${ringColor}" stroke-dasharray="${c}" stroke-dashoffset="${dash}"/></svg><div class="center" style="color:${ringColor}">${ringText}</div></div>
+        <div class="dom-card-stats"><div class="dom-stat-row"><span class="label">Total Produksi</span><span class="val">${total} akun</span></div><div class="dom-stat-row"><span class="label">Kali Dipakai</span><span class="val">${times}×</span></div>
+        ${st.st==='cd'?`<div class="dom-stat-row"><span class="label">Available</span><span class="val" style="color:var(--green)">${fmtDate(addDays(st.last,S.cfg.cooldown+1))}</span></div>`:''}
+        ${st.st==='used'&&st.logs?`<div class="dom-stat-row"><span class="label">Operator</span><span class="val">${st.logs.map(l=>{const u=S.users.find(x=>x.id===l.userId);return u?.name||'?'}).join(', ')}</span></div>`:''}</div></div>
+        <div class="dom-card-footer"><button class="btn btn-d btn-icon" onclick="removeDomain('${d.id}')" title="Hapus">✕</button></div></div>`;
     }).join('');
 }
 
 function renderUsers() {
     const el=document.getElementById('userGrid');
-    if(!S.users.length) { el.innerHTML='<div class="empty"><div class="ei">👤</div><p>Belum ada user. Tambahkan operator!</p></div>'; return; }
+    if(!S.users.length){el.innerHTML='<div class="empty"><div class="ei">👤</div><p>Belum ada user.</p></div>';return}
     el.innerHTML=S.users.map((u,i)=>{
-        const todayP=userTodayProduced(u.id);
-        const totalP=userTotalProduced(u.id);
-        const totalDays=[...new Set(S.logs.filter(l=>l.userId===u.id).map(l=>l.date))].length;
-        return `<div class="user-card">
-            <div class="user-av uc${i%4}">${u.name.charAt(0).toUpperCase()}</div>
-            <div class="user-nm">${u.name}</div>
-            <div class="user-stats">
-                <div class="user-stat"><div class="v" style="color:var(--blue)">${todayP}</div><div class="l">Hari Ini</div></div>
-                <div class="user-stat"><div class="v" style="color:var(--green)">${totalP}</div><div class="l">Total Akun</div></div>
-                <div class="user-stat"><div class="v" style="color:var(--amber)">${totalDays}</div><div class="l">Hari Kerja</div></div>
-                <div class="user-stat"><div class="v" style="color:var(--purple)">${totalDays?Math.round(totalP/totalDays):0}</div><div class="l">Avg/Hari</div></div>
-            </div>
-            <div style="margin-top:10px"><button class="btn btn-d btn-icon" onclick="removeUser('${u.id}')" style="margin:0 auto">✕</button></div>
-        </div>`;
+        const tp=userToday(u.id), tot=userTotal(u.id);
+        const days=[...new Set(S.logs.filter(l=>l.userId===u.id).map(l=>l.date))].length;
+        return `<div class="user-card"><div class="user-av uc${i%4}">${u.name[0].toUpperCase()}</div><div class="user-nm">${u.name}</div>
+        <div class="user-stats"><div class="user-stat"><div class="v" style="color:var(--blue)">${tp}</div><div class="l">Hari Ini</div></div>
+        <div class="user-stat"><div class="v" style="color:var(--green)">${tot}</div><div class="l">Total Akun</div></div>
+        <div class="user-stat"><div class="v" style="color:var(--amber)">${days}</div><div class="l">Hari Kerja</div></div>
+        <div class="user-stat"><div class="v" style="color:var(--purple)">${days?Math.round(tot/days):0}</div><div class="l">Avg/Hari</div></div></div>
+        <div style="margin-top:10px"><button class="btn btn-d btn-icon" onclick="removeUser('${u.id}')" style="margin:0 auto">✕</button></div></div>`;
     }).join('');
 }
 
 function renderSched() {
-    const el=document.getElementById('schedBody'); const t=today();
-    if(!S.domains.length) { el.innerHTML=`<tr><td colspan="6" class="empty">Tambahkan domain dulu</td></tr>`; return; }
+    const el=document.getElementById('schedBody'), t=getToday();
+    if(!S.domains.length){el.innerHTML='<tr><td colspan="6" class="empty">Tambahkan domain dulu</td></tr>';return}
     el.innerHTML=S.domains.map((d,i)=>{
         const st=domStatus(d.id,t);
         let badge='',op='<span style="color:var(--text-3)">—</span>',prod='',prog='',act='';
-        if(st.st==='ready') {
-            badge='<span class="badge badge-g">Ready</span>';
-            prod=`<span style="color:var(--text-3)">0 / ${S.cfg.maxAcc}</span>`;
-            prog=`<div style="height:4px;background:var(--border-1);border-radius:2px"><div style="width:0;height:100%;border-radius:2px;background:var(--green)"></div></div>`;
-            act=`<button class="btn btn-p btn-icon" onclick="quickLog('${d.id}')" title="Catat">📝</button>`;
-        } else if(st.st==='cd') {
-            badge=`<span class="badge badge-r">CD ${st.left}h</span>`;
-            prod=`<span style="color:var(--text-3)">—</span>`;
-            const pct=((S.cfg.cooldown-st.left+1)/S.cfg.cooldown)*100;
-            prog=`<div style="height:4px;background:var(--border-1);border-radius:2px"><div style="width:${pct}%;height:100%;border-radius:2px;background:var(--red)"></div></div>`;
-        } else {
-            const pct=Math.round(st.count/S.cfg.maxAcc*100);
-            badge=st.count>=S.cfg.maxAcc?'<span class="badge badge-b">Full</span>':`<span class="badge badge-a">${st.count}/${S.cfg.maxAcc}</span>`;
-            prod=`<b style="color:var(--blue)">${st.count}</b> / ${S.cfg.maxAcc}`;
-            prog=`<div style="height:4px;background:var(--border-1);border-radius:2px"><div style="width:${pct}%;height:100%;border-radius:2px;background:${pct>=100?'var(--blue)':'var(--amber)'}"></div></div>`;
-            if(st.logs) {
-                const uids=[...new Set(st.logs.map(l=>l.userId))];
-                op=uids.map(uid=>{const u=S.users.find(x=>x.id===uid);return u?u.name:'?'}).join(', ');
-            }
-            if(st.count<S.cfg.maxAcc) act=`<button class="btn btn-p btn-icon" onclick="quickLog('${d.id}')" title="Tambah">📝</button>`;
-        }
+        if(st.st==='ready'){badge='<span class="badge badge-g">Ready</span>';prod=`<span style="color:var(--text-3)">0/${S.cfg.maxAcc}</span>`;prog=`<div style="height:4px;background:var(--border-1);border-radius:2px"><div style="width:0;height:100%;border-radius:2px;background:var(--green)"></div></div>`;act=`<button class="btn btn-p btn-icon" onclick="quickLog('${d.id}')">📝</button>`}
+        else if(st.st==='cd'){badge=`<span class="badge badge-r">CD ${st.left}h</span>`;prod='<span style="color:var(--text-3)">—</span>';const p=((S.cfg.cooldown-st.left+1)/S.cfg.cooldown)*100;prog=`<div style="height:4px;background:var(--border-1);border-radius:2px"><div style="width:${p}%;height:100%;border-radius:2px;background:var(--red)"></div></div>`}
+        else{const p=Math.round(st.count/S.cfg.maxAcc*100);badge=st.count>=S.cfg.maxAcc?'<span class="badge badge-b">Full</span>':`<span class="badge badge-a">${st.count}/${S.cfg.maxAcc}</span>`;prod=`<b style="color:var(--blue)">${st.count}</b>/${S.cfg.maxAcc}`;prog=`<div style="height:4px;background:var(--border-1);border-radius:2px"><div style="width:${p}%;height:100%;border-radius:2px;background:${p>=100?'var(--blue)':'var(--amber)'}"></div></div>`;if(st.logs){const uids=[...new Set(st.logs.map(l=>l.userId))];op=uids.map(uid=>{const u=S.users.find(x=>x.id===uid);return u?u.name:'?'}).join(', ')}if(st.count<S.cfg.maxAcc)act=`<button class="btn btn-p btn-icon" onclick="quickLog('${d.id}')">📝</button>`}
         return `<tr><td><div style="display:flex;align-items:center;gap:8px"><div class="dom-avatar c${i%8}" style="width:28px;height:28px;font-size:11px;border-radius:6px">${d.name[0].toUpperCase()}</div>${d.name}</div></td><td>${badge}</td><td>${op}</td><td>${prod}</td><td style="min-width:80px">${prog}</td><td>${act}</td></tr>`;
     }).join('');
 }
 
-function quickLog(domId) { openM('addLog'); setTimeout(()=>document.getElementById('logDom').value=domId,100); }
-
 function renderTL() {
-    const el=document.getElementById('tlBox'); const t=today();
-    if(!S.domains.length) { el.innerHTML='<div class="empty"><div class="ei">📅</div><p>Tambahkan domain</p></div>'; return; }
-    const start=addD(t,tlOff);
-    const days=[]; for(let i=0;i<7;i++) days.push(addD(start,i));
+    const el=document.getElementById('tlBox'),t=getToday();
+    if(!S.domains.length){el.innerHTML='<div class="empty"><div class="ei">📅</div><p>Tambahkan domain</p></div>';return}
+    const start=addDays(t,tlOff), days=[]; for(let i=0;i<7;i++) days.push(addDays(start,i));
     let h='<div class="tl-grid"><div class="tl-hdr"><div class="tl-label" style="font-size:10px;color:var(--text-3)">DOMAIN</div>';
-    days.forEach(d=>{ h+=`<div class="tl-dh${d===t?' today':''}">${fmtShort(d)}</div>`; });
+    days.forEach(d=>{h+=`<div class="tl-dh${d===t?' today':''}">${fmtShort(d)}</div>`});
     h+='</div>';
     S.domains.forEach((dom,di)=>{
         h+=`<div class="tl-row"><div class="tl-label"><div class="ma c${di%8}">${dom.name[0].toUpperCase()}</div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${dom.name}</span></div>`;
         days.forEach(d=>{
-            const st=domStatus(dom.id,d);
-            let chip='';
+            const st=domStatus(dom.id,d); let chip='';
             if(st.st==='ready') chip='<div class="tl-chip ready">✓ READY</div>';
             else if(st.st==='cd') chip=`<div class="tl-chip cd">⏳ CD${st.left}h</div>`;
             else if(st.count>=S.cfg.maxAcc) chip=`<div class="tl-chip used">✓ ${st.count}</div>`;
@@ -931,146 +923,103 @@ function renderTL() {
         });
         h+='</div>';
     });
-    h+='</div>';
-    el.innerHTML=h;
+    el.innerHTML=h+'</div>';
 }
-const tlShift=n=>{ tlOff+=n; renderTL(); };
-const tlReset=()=>{ tlOff=0; renderTL(); };
+const tlShift=n=>{tlOff+=n;renderTL()}, tlReset=()=>{tlOff=0;renderTL()};
 
 function renderFC() {
-    const el=document.getElementById('fcGrid'); const t=today();
-    if(!S.domains.length) { el.innerHTML='<div class="empty"><div class="ei">🔮</div><p>Tambahkan domain</p></div>'; return; }
+    const el=document.getElementById('fcGrid'),t=getToday();
+    if(!S.domains.length){el.innerHTML='<div class="empty"><div class="ei">🔮</div><p>Tambahkan domain</p></div>';return}
     let h='';
-    for(let i=0;i<7;i++) {
-        const d=addD(t,i);
-        const ready=S.domains.filter(dom=>domStatus(dom.id,d).st==='ready');
-        const used=S.domains.filter(dom=>domStatus(dom.id,d).st==='used');
-        const avail=ready.length;
-        const capacity=(avail+used.length)*S.cfg.maxAcc;
-        const produced=used.reduce((s,dom)=>s+domStatus(dom.id,d).count,0);
-        const color=avail>=3?'var(--green)':avail>=1?'var(--amber)':'var(--red)';
-        h+=`<div class="fc-card${i===0?' today':''}">
-            <div class="fc-date">${i===0?'⚡ HARI INI':fmtDate(d)}</div>
-            <div class="fc-count" style="color:${color}">${avail}</div>
-            <div class="fc-label">Domain Ready</div>
-            <div style="font-size:10px;color:var(--text-3);margin-top:4px">Kapasitas: <b style="color:var(--text-2)">${avail*S.cfg.maxAcc}</b> akun</div>
-            ${ready.length?`<div class="fc-domains">${ready.map(d=>`<span class="fc-d">${d.name}</span>`).join('')}</div>`:'<div style="font-size:10px;color:var(--red);margin-top:6px">Semua domain cooldown</div>'}
-        </div>`;
+    for(let i=0;i<7;i++){
+        const d=addDays(t,i), ready=S.domains.filter(dom=>domStatus(dom.id,d).st==='ready');
+        const avail=ready.length, color=avail>=3?'var(--green)':avail>=1?'var(--amber)':'var(--red)';
+        h+=`<div class="fc-card${i===0?' today':''}"><div class="fc-date">${i===0?'⚡ HARI INI':fmtDate(d)}</div>
+        <div class="fc-count" style="color:${color}">${avail}</div><div class="fc-label">Domain Ready</div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:4px">Kapasitas: <b style="color:var(--text-2)">${avail*S.cfg.maxAcc}</b> akun</div>
+        ${ready.length?`<div class="fc-domains">${ready.map(d=>`<span class="fc-d">${d.name}</span>`).join('')}</div>`:'<div style="font-size:10px;color:var(--red);margin-top:6px">Semua domain cooldown</div>'}</div>`;
     }
     el.innerHTML=h;
 }
 
 function renderLogs() {
-    const el=document.getElementById('logBody');
-    const q=(document.getElementById('logSearch')?.value||'').toLowerCase();
+    const el=document.getElementById('logBody'), q=(document.getElementById('logSearch')?.value||'').toLowerCase();
     let logs=[...S.logs].sort((a,b)=>b.date.localeCompare(a.date)||b.at.localeCompare(a.at));
-    if(q) {
-        logs=logs.filter(l=>{
-            const d=S.domains.find(x=>x.id===l.domId), u=S.users.find(x=>x.id===l.userId);
-            return (d?.name||'').toLowerCase().includes(q)||(u?.name||'').toLowerCase().includes(q)||(l.note||'').toLowerCase().includes(q)||l.date.includes(q);
-        });
-    }
-    if(!logs.length) { el.innerHTML=`<tr><td colspan="6" class="empty">${q?'Tidak ada hasil pencarian':'Belum ada log produksi'}</td></tr>`; return; }
+    if(q) logs=logs.filter(l=>{const d=S.domains.find(x=>x.id===l.domId),u=S.users.find(x=>x.id===l.userId);return(d?.name||'').toLowerCase().includes(q)||(u?.name||'').toLowerCase().includes(q)||(l.note||'').toLowerCase().includes(q)||l.date.includes(q)});
+    if(!logs.length){el.innerHTML=`<tr><td colspan="6" class="empty">${q?'Tidak ditemukan':'Belum ada log'}</td></tr>`;return}
     el.innerHTML=logs.slice(0,100).map(l=>{
-        const d=S.domains.find(x=>x.id===l.domId), u=S.users.find(x=>x.id===l.userId);
+        const d=S.domains.find(x=>x.id===l.domId),u=S.users.find(x=>x.id===l.userId);
         return `<tr><td><b>${fmtDate(l.date)}</b></td><td>${d?.name||'<i style="color:var(--text-3)">Dihapus</i>'}</td><td>${u?.name||'<i style="color:var(--text-3)">Dihapus</i>'}</td><td><b style="color:var(--blue)">${l.count}</b> akun</td><td style="color:var(--text-2)">${l.note||'—'}</td><td><button class="btn btn-d btn-icon" onclick="removeLog('${l.id}')">✕</button></td></tr>`;
     }).join('');
 }
 
-function renderStats_() {
-    const t=today(); let ready=0, cd=0, prodToday=0;
-    S.domains.forEach(d=>{ const st=domStatus(d.id,t); if(st.st==='ready')ready++; else if(st.st==='cd')cd++; });
-    prodToday=S.logs.filter(l=>l.date===t).reduce((s,l)=>s+l.count,0);
-    const usedToday=S.domains.filter(d=>{const st=domStatus(d.id,t);return st.st==='used'}).length;
-    const capLeft = ready * S.cfg.maxAcc + S.domains.filter(d=>{const st=domStatus(d.id,t);return st.st==='used'&&st.count<S.cfg.maxAcc}).reduce((s,d)=>{const st=domStatus(d.id,t);return s+(S.cfg.maxAcc-st.count)},0);
+function renderStatsBar() {
+    const t=getToday(); let ready=0,cd=0;
+    S.domains.forEach(d=>{const st=domStatus(d.id,t);if(st.st==='ready')ready++;else if(st.st==='cd')cd++});
+    const prodToday=S.logs.filter(l=>l.date===t).reduce((s,l)=>s+l.count,0);
+    const usedToday=S.domains.filter(d=>domStatus(d.id,t).st==='used').length;
+    const capLeft=ready*S.cfg.maxAcc+S.domains.filter(d=>{const st=domStatus(d.id,t);return st.st==='used'&&st.count<S.cfg.maxAcc}).reduce((s,d)=>{const st=domStatus(d.id,t);return s+(S.cfg.maxAcc-st.count)},0);
     document.getElementById('s0').textContent=S.domains.length;
     document.getElementById('s1').textContent=ready;
     document.getElementById('s2').textContent=cd;
     document.getElementById('s3').textContent=prodToday;
     document.getElementById('s4').textContent=capLeft;
-    document.getElementById('s1s').textContent=`${ready} siap, ${usedToday} sedang dipakai`;
+    document.getElementById('s1s').textContent=`${ready} siap, ${usedToday} dipakai`;
     document.getElementById('s3s').textContent=`${usedToday} domain dipakai hari ini`;
     document.getElementById('s4s').textContent=`dari ${ready} domain ready`;
 }
 
 function renderCharts() {
-    // 14-day production chart
-    const t=today();
-    const chart14=document.getElementById('chart14');
-    const chart14L=document.getElementById('chart14L');
-    const days14=[]; for(let i=13;i>=0;i--) days14.push(addD(t,-i));
-    const vals14=days14.map(d=>S.logs.filter(l=>l.date===d).reduce((s,l)=>s+l.count,0));
-    const max14=Math.max(...vals14,1);
-    chart14.innerHTML=vals14.map((v,i)=>{
-        const h=Math.max(2,v/max14*100);
-        const d=new Date(days14[i]+'T00:00:00');
-        return `<div class="chart-bar" style="height:${h}%;background:linear-gradient(to top,var(--blue),var(--purple))"><div class="tip">${fmtDate(days14[i])}<br>${v} akun</div></div>`;
-    }).join('');
-    chart14L.innerHTML=days14.map(d=>{const x=new Date(d+'T00:00:00');return `<span>${x.getDate()}</span>`;}).join('');
-
+    const t=getToday();
+    // 14-day chart
+    const c14=document.getElementById('chart14'),c14L=document.getElementById('chart14L');
+    const days14=[];for(let i=13;i>=0;i--)days14.push(addDays(t,-i));
+    const v14=days14.map(d=>S.logs.filter(l=>l.date===d).reduce((s,l)=>s+l.count,0));
+    const m14=Math.max(...v14,1);
+    c14.innerHTML=v14.map((v,i)=>`<div class="chart-bar" style="height:${Math.max(2,v/m14*100)}%;background:linear-gradient(to top,var(--blue),var(--purple))"><div class="tip">${fmtDate(days14[i])}<br>${v} akun</div></div>`).join('');
+    c14L.innerHTML=days14.map(d=>`<span>${new Date(d+'T00:00:00').getDate()}</span>`).join('');
     // User chart
-    const chartU=document.getElementById('chartUser');
-    const chartUL=document.getElementById('chartUserL');
-    if(S.users.length) {
-        const uColors=['var(--blue)','var(--green)','var(--amber)','var(--pink)','var(--purple)','var(--cyan)'];
-        const uVals=S.users.map(u=>userTotalProduced(u.id));
-        const maxU=Math.max(...uVals,1);
-        chartU.innerHTML=S.users.map((u,i)=>{
-            const h=Math.max(2,uVals[i]/maxU*100);
-            return `<div class="chart-bar" style="height:${h}%;background:${uColors[i%6]}"><div class="tip">${u.name}: ${uVals[i]} akun</div></div>`;
-        }).join('');
-        chartUL.innerHTML=S.users.map(u=>`<span>${u.name}</span>`).join('');
-    } else { chartU.innerHTML='<div class="empty" style="padding:20px"><p>Belum ada user</p></div>'; chartUL.innerHTML=''; }
-
+    const cU=document.getElementById('chartUser'),cUL=document.getElementById('chartUserL');
+    const uCol=['var(--blue)','var(--green)','var(--amber)','var(--pink)','var(--purple)','var(--cyan)'];
+    if(S.users.length){const uV=S.users.map(u=>userTotal(u.id)),mU=Math.max(...uV,1);
+    cU.innerHTML=S.users.map((u,i)=>`<div class="chart-bar" style="height:${Math.max(2,uV[i]/mU*100)}%;background:${uCol[i%6]}"><div class="tip">${u.name}: ${uV[i]} akun</div></div>`).join('');
+    cUL.innerHTML=S.users.map(u=>`<span>${u.name}</span>`).join('')}else{cU.innerHTML='<div class="empty" style="padding:20px"><p>Belum ada user</p></div>';cUL.innerHTML=''}
     // Domain chart
-    const chartD=document.getElementById('chartDom');
-    const chartDL=document.getElementById('chartDomL');
-    if(S.domains.length) {
-        const dVals=S.domains.map(d=>domTotalProduced(d.id));
-        const maxD=Math.max(...dVals,1);
-        chartD.innerHTML=S.domains.map((d,i)=>{
-            const h=Math.max(2,dVals[i]/maxD*100);
-            return `<div class="chart-bar" style="height:${h}%;background:linear-gradient(to top,var(--green),var(--cyan))"><div class="tip">${d.name}: ${dVals[i]} akun</div></div>`;
-        }).join('');
-        chartDL.innerHTML=S.domains.map(d=>`<span>${d.name.split('.')[0]}</span>`).join('');
-    } else { chartD.innerHTML='<div class="empty" style="padding:20px"><p>Belum ada domain</p></div>'; chartDL.innerHTML=''; }
+    const cD=document.getElementById('chartDom'),cDL=document.getElementById('chartDomL');
+    if(S.domains.length){const dV=S.domains.map(d=>domTotal(d.id)),mD=Math.max(...dV,1);
+    cD.innerHTML=S.domains.map((d,i)=>`<div class="chart-bar" style="height:${Math.max(2,dV[i]/mD*100)}%;background:linear-gradient(to top,var(--green),var(--cyan))"><div class="tip">${d.name}: ${dV[i]} akun</div></div>`).join('');
+    cDL.innerHTML=S.domains.map(d=>`<span>${d.name.split('.')[0]}</span>`).join('')}else{cD.innerHTML='<div class="empty" style="padding:20px"><p>Belum ada domain</p></div>';cDL.innerHTML=''}
 }
 
-// ===== CONFIG UI =====
-function loadCfg() {
-    document.getElementById('cfgCD').value=S.cfg.cooldown;
-    document.getElementById('cfgMax').value=S.cfg.maxAcc;
-}
+// ==================== TOAST ====================
+function toast(msg,type='inf'){const c=document.getElementById('toastBox'),el=document.createElement('div');el.className='toast '+type;el.innerHTML=msg;c.appendChild(el);setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(30px)';el.style.transition='all .3s';setTimeout(()=>el.remove(),300)},3500)}
 
-// ===== TOAST =====
-function toast(msg, type='inf') {
-    const c=document.getElementById('toastBox');
-    const el=document.createElement('div'); el.className='toast '+type;
-    el.innerHTML=msg;
-    c.appendChild(el);
-    setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(30px)'; el.style.transition='all .3s';
-        setTimeout(()=>el.remove(),300); },3500);
-}
+// ==================== CLOCK ====================
+function clock(){const n=new Date(),d=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],m=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];document.getElementById('hDate').textContent=`${d[n.getDay()]}, ${n.getDate()} ${m[n.getMonth()]} ${n.getFullYear()}`;document.getElementById('hTime').textContent=n.toLocaleTimeString('id-ID')}
 
-// ===== CLOCK =====
-function clock() {
-    const n=new Date();
-    const d=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-    const m=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-    document.getElementById('hDate').textContent=`${d[n.getDay()]}, ${n.getDate()} ${m[n.getMonth()]} ${n.getFullYear()}`;
-    document.getElementById('hTime').textContent=n.toLocaleTimeString('id-ID');
-}
+// ==================== EVENTS ====================
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-bg.on').forEach(m=>m.classList.remove('on'))});
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('on')}));
+document.getElementById('inDom').addEventListener('keydown',e=>{if(e.key==='Enter')addDomain()});
+document.getElementById('inUser').addEventListener('keydown',e=>{if(e.key==='Enter')addUser()});
 
-// ===== KEYBOARD =====
-document.addEventListener('keydown',e=>{
-    if(e.key==='Escape') document.querySelectorAll('.modal-bg.on').forEach(m=>m.classList.remove('on'));
-});
-document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m)m.classList.remove('on'); }));
-document.getElementById('inDom').addEventListener('keydown',e=>{ if(e.key==='Enter')addDomain(); });
-document.getElementById('inUser').addEventListener('keydown',e=>{ if(e.key==='Enter')addUser(); });
+// ==================== INIT ====================
+(function init() {
+    clock(); setInterval(clock, 1000);
 
-// ===== INIT =====
-load(); loadCfg(); renderAll(); clock(); setInterval(clock,1000);
+    // Check for saved Firebase config
+    const fbCfg = loadFBConfig();
+    if(fbCfg && fbCfg.apiKey && fbCfg.databaseURL) {
+        // Has Firebase config - connect
+        initFirebase(fbCfg);
+    } else {
+        // No Firebase - use localStorage
+        loadLocal();
+        loadCfgUI();
+        renderAll();
+        document.getElementById('setupBanner').classList.remove('hidden');
+    }
+})();
 </script>
 </body>
 </html>
